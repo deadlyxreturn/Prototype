@@ -12,23 +12,12 @@ name: Release
 # pushed with the workflow token starts no workflow by itself); a tag with
 # a pre-release part is published as a GitHub pre-release.
 on:
+  # Prototype: every push to main builds Prototype 1.0.0 for Windows and
+  # (re)publishes the v1.0.0 release with the installer; a version tag too
   push:
+    branches: [main]
     tags: ['v[0-9]+.[0-9]+.[0-9]+*']
-  workflow_call:
-    inputs:
-      tag:
-        description: Version tag to build and publish (already pushed)
-        required: true
-        type: string
-  pull_request:
-    paths:
-      - .github/workflows/release.yml
-      - scripts/package.ps1
-      - packaging/linux/**
-      - packaging/macos/**
-      - scripts/package-macos.ps1
-      - assets/branding/prototype.icns
-      - scripts/verify-version.ps1
+  workflow_dispatch:
 
 # a new push to a pull request stops its previous dry run; a release (a
 # tag, or the nightly's call) is never cancelled: its group is its own run
@@ -43,7 +32,7 @@ jobs:
   windows:
     runs-on: windows-latest
     env:
-      TAG: ${{ inputs.tag || github.event_name == 'push' && github.ref_name || 'dry-run' }}
+      TAG: ${{ github.ref_type == 'tag' && github.ref_name || 'v1.0.0' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -111,7 +100,15 @@ jobs:
           # Viewer Policy §1.c) comes before the generated notes.
           $ghArgs = @($v, $env:SETUP, $env:ZIP, "$($env:ZIP).sha256", $env:SYMBOLS, "$($env:SYMBOLS).sha256", 'prototype-update-policy.json', '--title', "Prototype $v", '--notes-file', '.github/release-notes-header.md', '--generate-notes', '--verify-tag')
           if ($v -match '-') { $ghArgs += '--prerelease' }   # v0.3.0-beta.1
-          gh release create @ghArgs
+          # the release (and its tag) is made here, on the built commit; a new
+          # build of the same version replaces its files
+          $ghArgs = $ghArgs | Where-Object { $_ -ne '--verify-tag' }
+          gh release view $v *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $v $env:SETUP $env:ZIP "$($env:ZIP).sha256" --clobber
+          } else {
+            gh release create @ghArgs --target $env:GITHUB_SHA
+          }
       - name: Dry-run symbols
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v7
@@ -132,7 +129,7 @@ jobs:
     if: ${{ !cancelled() && (needs.windows.result == 'success' || github.event_name == 'pull_request') }}
     runs-on: ubuntu-24.04
     env:
-      TAG: ${{ inputs.tag || github.event_name == 'push' && github.ref_name || 'dry-run' }}
+      TAG: ${{ github.ref_type == 'tag' && github.ref_name || 'v1.0.0' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -198,7 +195,7 @@ jobs:
     if: ${{ !cancelled() && (needs.windows.result == 'success' || github.event_name == 'pull_request') }}
     runs-on: macos-15
     env:
-      TAG: ${{ inputs.tag || github.event_name == 'push' && github.ref_name || 'dry-run' }}
+      TAG: ${{ github.ref_type == 'tag' && github.ref_name || 'v1.0.0' }}
       APP: Prototype.app
       SIGNED: ${{ secrets.MACOS_CERTIFICATE_P12 != '' && secrets.APPLE_API_KEY_P8 != '' }}
     steps:
