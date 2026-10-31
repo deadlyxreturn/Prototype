@@ -422,6 +422,30 @@ fn proto_card<R>(ui: &mut egui::Ui, p: &Palette, body: impl FnOnce(&mut egui::Ui
     response
 }
 
+/// A pill of frosted glass holding an icon and a menu (grid, start place).
+fn pill_menu(ui: &mut egui::Ui, p: &Palette, icons: &Icons, icon: &str, menu: impl FnOnce(&mut egui::Ui)) {
+    Frame::new()
+        .fill(p.field.gamma_multiply(0.62))
+        .stroke(Stroke::new(1.5, PILL_EDGE))
+        .corner_radius(PILL_RADIUS) // theme-guard: content — Prototype's pill menus
+        .inner_margin(Margin::symmetric(16, 8))
+        .show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 8.0;
+                let (r, _) = ui.allocate_exact_size(Vec2::splat(17.0), Sense::hover());
+                img(ui, icons, icon, r, p.ink);
+                // the menu's own button goes flat inside the pill
+                let w = &mut ui.visuals_mut().widgets;
+                for state in [&mut w.inactive, &mut w.hovered, &mut w.active, &mut w.open] {
+                    state.bg_fill = Color32::TRANSPARENT;
+                    state.weak_bg_fill = Color32::TRANSPARENT;
+                    state.bg_stroke = Stroke::NONE;
+                }
+                menu(ui);
+            });
+        });
+}
+
 /// A pill of frosted glass with its icon and label (the card's foot).
 fn pill_button(ui: &mut egui::Ui, p: &Palette, icons: &Icons, icon: &str, label: &str, size: Vec2) -> egui::Response {
     let (r, resp) = ui.allocate_exact_size(size, Sense::click());
@@ -625,7 +649,7 @@ pub fn show(
                 // Prototype's header: the bear, the wordmark, the tagline
                 ui.vertical_centered(|ui| {
                     if let Some(bear) = super::prototype_art::texture(&ctx, super::prototype_art::Art::Bear) {
-                        let size = super::prototype_art::size_at_width(&bear, 150.0);
+                        let size = super::prototype_art::size_at_width(&bear, 210.0);
                         let r = ui.add(egui::Image::new(&bear).fit_to_exact_size(size)).rect;
                         let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Background, egui::Id::unique("halo")));
                         super::prototype_bg::radial_glow(&painter, r.center(), 120.0, p.violet, 0.30);
@@ -641,8 +665,8 @@ pub fn show(
                         }
                     }
                     ui.add_space(2.0);
-                    ui.label(RichText::new(client_tagline()).size(12.0).color(p.violet_pale));
-                    ui.add_space(14.0);
+                    ui.label(RichText::new(client_tagline()).size(12.5).color(p.muted));
+                    ui.add_space(24.0);
                 });
                 let enabled = !form.busy && !super::grids::is_open(&ctx);
                 ui.add_enabled_ui(enabled, |ui| {
@@ -699,22 +723,27 @@ pub fn show(
 
                     ui.add_space(6.0);
                     // grid and start location side by side
+                    // Prototype: grid and start place as two glass pills, each
+                    // with its icon (the concept), the menus inside them
+                    ui.add_space(8.0);
                     ui.columns(2, |cols| {
-                        caption(&mut cols[0], p, prototype_i18n::tr!("ui-login-grid"));
-                        let mut uri = settings.login_uri();
-                        super::grids::selector(&mut cols[0], &settings.grids, &mut uri);
-                        settings.grid = crate::login_accounts::grid(&uri);
-                        if settings.grid == GridChoice::Custom && !uri.is_empty() {
-                            settings.custom_login_uri = uri;
-                        }
-                        caption(&mut cols[1], p, prototype_i18n::tr!("ui-login-start"));
-                        let width = cols[1].available_width();
-                        start_menu(
-                            &mut cols[1],
-                            egui::ComboBox::from_id_salt("start").width(width),
-                            &mut settings.start_location,
-                            &mut form.start_slurl,
-                        );
+                        pill_menu(&mut cols[0], p, icons, "world-filled", |ui| {
+                            let mut uri = settings.login_uri();
+                            super::grids::selector(ui, &settings.grids, &mut uri);
+                            settings.grid = crate::login_accounts::grid(&uri);
+                            if settings.grid == GridChoice::Custom && !uri.is_empty() {
+                                settings.custom_login_uri = uri;
+                            }
+                        });
+                        pill_menu(&mut cols[1], p, icons, "map-pin-filled", |ui| {
+                            let width = ui.available_width();
+                            start_menu(
+                                ui,
+                                egui::ComboBox::from_id_salt("start").width(width),
+                                &mut settings.start_location,
+                                &mut form.start_slurl,
+                            );
+                        });
                     });
                     if settings.grid == GridChoice::Custom {
                         field(
@@ -740,31 +769,7 @@ pub fn show(
                             None,
                         );
                     }
-                    ui.add_space(8.0);
-                    // Prototype: "Remember me" keeps the name and the password
-                    // (the Legacy Viewer's two boxes, as one), the link beside it
-                    ui.horizontal(|ui| {
-                        let mut remember = settings.remember_username && settings.remember_password;
-                        if widgets::checkbox(ui, p, &mut remember, prototype_i18n::tr!("ui-login-remember-me")).changed() {
-                            settings.remember_username = remember;
-                            settings.remember_password = remember;
-                        }
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            let link = ui.add(
-                                egui::Label::new(
-                                    RichText::new(prototype_i18n::tr!("ui-login-forgot-password")).size(14.0).underline().color(p.ink),
-                                )
-                                .sense(Sense::click()),
-                            );
-                            if link.clicked() {
-                                ui.ctx().open_url(egui::OpenUrl::new_tab(FORGOT_PASSWORD_URL));
-                            }
-                            if link.hovered() {
-                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-                            }
-                        });
-                    });
-                    ui.add_space(10.0);
+                    ui.add_space(16.0);
                     let can = form.block_reason.is_none()
                         && !settings.username.trim().is_empty()
                         && (!form.password.is_empty() || form.stored.is_some());
@@ -822,6 +827,31 @@ pub fn show(
                     if (resp.clicked() || enter) && can && enabled {
                         action = LoginAction::Login;
                     }
+                    ui.add_space(14.0);
+                    // Prototype: "Remember me" keeps the name and the password
+                    // (the Legacy Viewer's two boxes, as one), the link beside it
+                    ui.horizontal(|ui| {
+                        let mut remember = settings.remember_username && settings.remember_password;
+                        if widgets::checkbox(ui, p, &mut remember, prototype_i18n::tr!("ui-login-remember-me")).changed() {
+                            settings.remember_username = remember;
+                            settings.remember_password = remember;
+                        }
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            let link = ui.add(
+                                egui::Label::new(
+                                    RichText::new(prototype_i18n::tr!("ui-login-forgot-password")).size(14.0).underline().color(p.ink),
+                                )
+                                .sense(Sense::click()),
+                            );
+                            if link.clicked() {
+                                ui.ctx().open_url(egui::OpenUrl::new_tab(FORGOT_PASSWORD_URL));
+                            }
+                            if link.hovered() {
+                                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                            }
+                        });
+                    });
+
                 });
                 if let Some(reason) = form.block_reason {
                     ui.add_space(8.0);
@@ -856,7 +886,7 @@ pub fn show(
                     ui.label(RichText::new(err).size(12.5).color(p.danger));
                 }
                 // Prototype: Register, Settings and Exit along the card's foot
-                ui.add_space(26.0);
+                ui.add_space(46.0);
                 let gap = ui.spacing().item_spacing.x;
                 let w = (ui.available_width() - 2.0 * gap) / 3.0;
                 ui.horizontal(|ui| {

@@ -1096,6 +1096,10 @@ pub fn show(ctx: &egui::Context, p: &Palette, icons: &Icons, s: &mut Settings, s
     }
     let screen = ctx.content_rect();
     let size = vec2(1120.0, 720.0).min(screen.size() - vec2(40.0, 80.0)).max(vec2(640.0, 420.0));
+    // the title row's search edits a copy, given back after the frame
+    let mut searched = false;
+    let mut query = st.query.clone();
+    let mut focus = st.focus_search;
     let mut floater = Floater::new(
         WINDOW,
         prototype_i18n::tr!("common-preferences"),
@@ -1103,6 +1107,7 @@ pub fn show(ctx: &egui::Context, p: &Palette, icons: &Icons, s: &mut Settings, s
         size,
     )
     .help(prototype_i18n::tr!("ui-options-changes-apply-immediately-and-are-saved-on-closing"))
+    .search(&mut query, prototype_i18n::tr!("ui-options-search-settings"), &mut focus, &mut searched)
     .flush_body()
     .steady_size();
     floater.min_size = vec2(640.0, 420.0);
@@ -1110,6 +1115,12 @@ pub fn show(ctx: &egui::Context, p: &Palette, icons: &Icons, s: &mut Settings, s
     floater.show(ctx, p, open, |ui| {
         body(ui, p, s, &d, st, &mut r, &mut close);
     });
+    st.focus_search = focus;
+    if searched {
+        st.query = query;
+        st.modified_view = false;
+        st.capture = None;
+    }
     if close {
         *open = false;
     }
@@ -1244,31 +1255,7 @@ fn sidebar(
             .layout(egui::Layout::top_down(egui::Align::Min)),
     );
     ui.add_space(12.0);
-    let width = ui.available_width();
-    ui.horizontal(|ui| {
-        let clear_w = if st.query.is_empty() { 0.0 } else { 26.0 };
-        let field = super::widgets::search_box(
-            ui,
-            p,
-            &mut st.query,
-            prototype_i18n::tr!("ui-options-search-settings"),
-            width - clear_w,
-        );
-        if st.focus_search && !ui.is_sizing_pass() && ui.is_enabled() {
-            st.focus_search = false;
-            field.request_focus();
-        }
-        if field.changed() {
-            st.modified_view = false;
-            st.capture = None;
-        }
-        if !st.query.is_empty() && super::widgets::icon_button(ui, p, "x", prototype_i18n::tr!("common-clear"), true) {
-            st.query.clear();
-        }
-        if field.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
-            st.query.clear();
-        }
-    });
+    // Prototype: the search is in the title row (`Floater::search`)
     ui.add_space(6.0);
     let searching = !st.query.trim().is_empty();
     let list_h = (side.bottom() - ui.cursor().top() - 4.0).max(0.0);
@@ -1416,7 +1403,7 @@ fn pill_button(ui: &mut egui::Ui, p: &Palette, label: &str, size: Vec2, main: bo
         ui.painter().rect_stroke(rect, radius, egui::Stroke::new(1.5, p.field), egui::StrokeKind::Inside); // theme-guard: content — Prototype's pill buttons
     }
     let ink = if main { p.on_accent } else { p.ink };
-    let galley = ui.painter().layout_no_wrap(label.to_owned(), egui::FontId::proportional(17.0), ink);
+    let galley = ui.painter().layout_no_wrap(label.to_owned(), egui::FontId::proportional(15.5), ink);
     super::widgets::paint_ink_centered(ui.painter(), galley, rect.center(), ink);
     if resp.hovered() {
         ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
@@ -1690,8 +1677,8 @@ fn footer_bar(
     );
     use super::widgets::{ActionKind, action_button};
     let size = Vec2::new(0.0, 28.0);
-    let width = ui.painter().layout_no_wrap(prototype_i18n::tr!("ui-options-reset-everything-2").to_owned(), egui::FontId::proportional(17.0), p.ink).size().x + 40.0;
-    let reset_all = pill_button(&mut ui, p, prototype_i18n::tr!("ui-options-reset-everything-2"), vec2(width, 46.0), false)
+    let width = ui.painter().layout_no_wrap(prototype_i18n::tr!("ui-options-reset-everything-2").to_owned(), egui::FontId::proportional(15.5), p.ink).size().x + 36.0;
+    let reset_all = pill_button(&mut ui, p, prototype_i18n::tr!("ui-options-reset-everything-2"), vec2(width, 42.0), false)
     .on_hover_text(prototype_i18n::tr!("ui-options-reset-all-settings"));
     if reset_all.clicked() {
         let before = Box::new(s.clone());
@@ -1709,8 +1696,8 @@ fn footer_bar(
     }
     if !searching && !st.modified_view {
         let label = prototype_i18n::tr!("ui-options-reset-page", page = st.page.name());
-        let width = ui.painter().layout_no_wrap(label.clone(), egui::FontId::proportional(17.0), p.ink).size().x + 40.0;
-        let b = pill_button(&mut ui, p, &label, vec2(width, 46.0), false)
+        let width = ui.painter().layout_no_wrap(label.clone(), egui::FontId::proportional(15.5), p.ink).size().x + 36.0;
+        let b = pill_button(&mut ui, p, &label, vec2(width, 42.0), false)
             .on_hover_text(prototype_i18n::tr!("ui-options-reset-section-help", section = st.page.name()));
         if b.clicked() {
             reset_page(&mut ui, p, s, d, st, r, now);
@@ -1720,10 +1707,10 @@ fn footer_bar(
         // Prototype: OK closes (the changes are already applied), Cancel
         // puts back the settings as the window opened, then closes
         let ok_label = prototype_i18n::tr!("common-ok");
-        if pill_button(ui, p, ok_label, vec2(170.0, 46.0), true).clicked() {
+        if pill_button(ui, p, ok_label, vec2(150.0, 42.0), true).clicked() {
             *close = true;
         }
-        if pill_button(ui, p, prototype_i18n::tr!("common-cancel"), vec2(140.0, 46.0), false).clicked() {
+        if pill_button(ui, p, prototype_i18n::tr!("common-cancel"), vec2(120.0, 42.0), false).clicked() {
             if let Some(before) = st.opened_with.take() {
                 *s = *before;
                 r.changed = true;

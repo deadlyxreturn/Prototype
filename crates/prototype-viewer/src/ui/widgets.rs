@@ -282,6 +282,10 @@ pub struct Floater<'a> {
     /// Extra title bar buttons: (Tabler icon, tooltip, set when clicked),
     /// the first one nearest "Collapse".
     pub actions: Vec<(&'a str, &'a str, &'a mut bool)>,
+    /// Prototype: a search field in the title row (Preferences): the text,
+    /// its hint, and set when the field should take the keyboard (cleared
+    /// once it has); `searched` tells the caller the text changed.
+    pub search: Option<(&'a mut String, &'a str, &'a mut bool, &'a mut bool)>,
     /// No open / close sounds (sound_flags="0", e.g. floater_tools).
     pub silent: bool,
     /// An inset dark title bar and edge-to-edge body for inspector layouts.
@@ -337,6 +341,7 @@ impl<'a> Floater<'a> {
             height_only: false,
             help: None,
             actions: Vec::new(),
+            search: None,
             silent: false,
             framed_header: None,
             auto_height: false,
@@ -369,6 +374,12 @@ impl<'a> Floater<'a> {
     /// Position new inventory windows like Firestorm's same-type floaters.
     pub(crate) fn cascade(mut self, group: CascadeGroup) -> Self {
         self.cascade = Some(group);
+        self
+    }
+
+    /// A search field at the right of the title row (see `search`).
+    pub fn search(mut self, text: &'a mut String, hint: &'a str, focus: &'a mut bool, changed: &'a mut bool) -> Self {
+        self.search = Some((text, hint, focus, changed));
         self
     }
 
@@ -712,14 +723,16 @@ impl<'a> Floater<'a> {
                     }
                     ui.add_space(6.0);
                     ui.spacing_mut().item_spacing.x = 8.0;
-                    let big = self.id == "options";
+                    let big = self.id == super::options::WINDOW;
                     let title = RichText::new(&self.title).size(if big { 20.0 } else { 14.0 }).strong().color(p.ink);
                     // a fixed floater is as wide as its title; a resizable one
                     // cuts a long title short before the buttons (LLFloater
                     // titles end with an ellipsis)
                     let truncate = self.resizable || (minimized && !compact) || self.auto_height;
                     if !truncate {
-                        glyph(ui, workspace::window_icon(self.id), p.violet_light, 18.0);
+                        if !big {
+                            glyph(ui, workspace::window_icon(self.id), p.violet_light, 18.0);
+                        }
                         ui.label(title.clone());
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -735,6 +748,22 @@ impl<'a> Floater<'a> {
                         }
                         if let Some(h) = self.help {
                             title_button(ui, p, "help-circle-filled").on_hover_text(h);
+                        }
+                        if let Some((text, hint, focus, changed)) = &mut self.search {
+                            ui.add_space(4.0);
+                            let width = (ui.available_width() * 0.45).clamp(160.0, 320.0);
+                            let field = search_box(ui, p, text, hint, width);
+                            if **focus && !ui.is_sizing_pass() {
+                                **focus = false;
+                                field.request_focus();
+                            }
+                            if field.changed() {
+                                **changed = true;
+                            }
+                            if field.has_focus() && ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                                text.clear();
+                                **changed = true;
+                            }
                         }
                         if let Some((dot, text)) = &self.title_state {
                             ui.add_space(4.0);

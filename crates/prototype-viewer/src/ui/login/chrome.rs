@@ -49,35 +49,8 @@ pub fn footer(ctx: &Context, p: &Palette, icons: &Icons, info: &LoginInfo, sideb
             }
         });
     }
-    egui::Area::new(Id::unique("login_links"))
-        .anchor(egui::Align2::LEFT_BOTTOM, Vec2::new(25.0, -20.0))
-        .show(ctx, |ui| {
-            ui.label(
-                RichText::new(prototype_i18n::tr!("ui-login-join-the-community"))
-                    .size(11.5)
-                    .color(p.muted),
-            );
-            ui.add_space(4.0);
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 6.0;
-                super::link_button(ui, p, "world-filled", "prototypesl.com", crate::links::PROTOTYPE_SITE);
-                // Prototype: bug reports go to Prototype's site, not upstream
-                let _ = &mut action;
-                if !sidebar_visible
-                    && widgets::action_button(
-                        ui,
-                        p,
-                        "article-filled",
-                        prototype_i18n::tr!("ui-login-news"),
-                        ActionKind::Flat,
-                        Vec2::new(0.0, 30.0),
-                    )
-                    .clicked()
-                {
-                    form.show_info = true;
-                }
-            });
-        });
+    // Prototype: no community corner; the version line says where to go
+    let _ = (icons, sidebar_visible, &mut *form);
     if screen.width() < 1100.0 {
         egui::Area::new(Id::unique("login_footer_version"))
             .anchor(egui::Align2::RIGHT_BOTTOM, Vec2::new(-25.0, -59.0))
