@@ -68,7 +68,7 @@ fn system_wanted() -> bool {
         }
         out
     }
-    const NAME: [u16; 17] = wide("PROTOTYPE_ALLOCATOR");
+    const NAME: [u16; 20] = wide("PROTOTYPE_ALLOCATOR");
     const SYSTEM_VALUE: [u16; 6] = wide("system");
     let mut value = [0u16; 8];
     // SAFETY: NAME ends with a NUL, and the buffer's length in characters
