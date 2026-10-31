@@ -118,14 +118,7 @@ const NAV_H: f32 = 38.0;
 fn paint_nav_face(ui: &egui::Ui, p: &Palette, rect: egui::Rect, selected: bool, hovered: bool) {
     let radius = ui.visuals().window_corner_radius;
     if selected {
-        ui.painter().rect_filled(rect.expand(2.0), radius, p.violet.gamma_multiply(0.22));
-        ui.painter().rect_filled(rect, radius, p.violet);
-        let top = egui::Rect::from_min_max(rect.min, egui::pos2(rect.right(), rect.center().y));
-        ui.painter().rect_filled(
-            top,
-            egui::CornerRadius { nw: radius.nw, ne: radius.ne, sw: 0, se: 0 },
-            p.violet_light.gamma_multiply(0.35),
-        );
+        super::bubble(ui.painter(), p, rect, radius.nw as f32, hovered);
     } else if hovered {
         ui.painter().rect_filled(rect, radius, p.field.gamma_multiply(0.7));
     }

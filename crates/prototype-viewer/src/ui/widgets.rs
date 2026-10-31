@@ -1584,26 +1584,103 @@ pub const TRACK_RADIUS: f32 = 2.0;
 /// Size of a `switch`.
 pub const SWITCH_SIZE: Vec2 = Vec2::new(34.0, 18.0);
 
-/// Flat on/off switch: a track with the corners of the theme, and a square
-/// knob that slides in it.
+/// Prototype's glossy "bubble" face: a vertical gradient from the light
+/// accent down to the accent, a white gloss over its top half, a light rim
+/// and a soft green glow around it (brighter while `hot`). The main buttons,
+/// the chosen tab, segment and sidebar entry, and a switch that is on.
+pub fn bubble(painter: &egui::Painter, p: &Palette, rect: egui::Rect, radius: f32, hot: bool) {
+    let radius = radius.min(rect.height() * 0.5);
+    let glow = if hot { 0.26 } else { 0.13 };
+    painter.rect_filled(rect.expand(2.0), radius + 2.0, p.violet.gamma_multiply(glow)); // theme-guard: content — Prototype's bubble glow
+    gradient_rect(painter, rect, radius, p.violet.lerp_to_gamma(p.field, 0.18), p.violet.lerp_to_gamma(p.indigo, 0.2));
+    let inset = (radius * 0.45).max(3.0);
+    let gloss = egui::Rect::from_min_max(
+        egui::pos2(rect.left() + inset, rect.top() + 1.5),
+        egui::pos2(rect.right() - inset, rect.top() + rect.height() * 0.48),
+    );
+    if gloss.width() > 2.0 && gloss.height() > 1.0 {
+        gradient_rect(painter, gloss, gloss.height() * 0.5, p.field.gamma_multiply(0.42), p.field.gamma_multiply(0.04));
+    }
+    painter.rect_stroke(
+        rect,
+        radius,
+        Stroke::new(1.0, p.violet.lerp_to_gamma(p.field, 0.55)),
+        egui::StrokeKind::Inside,
+    ); // theme-guard: content — Prototype's bubble rim
+}
+
+/// A rounded rectangle filled with a vertical gradient: the theme's rect,
+/// tessellated, its vertices recoloured by height (the feathered edge keeps
+/// its fade).
+fn gradient_rect(painter: &egui::Painter, rect: egui::Rect, radius: f32, top: Color32, bottom: Color32) {
+    let ppp = painter.ctx().pixels_per_point();
+    let mut tess = egui::epaint::Tessellator::new(ppp, egui::epaint::TessellationOptions::default(), [1, 1], Vec::new());
+    let mut mesh = egui::epaint::Mesh::default();
+    let shape = egui::epaint::RectShape::filled(rect, radius, Color32::WHITE); // theme-guard: content — a mask, recoloured below
+    tess.tessellate_rect(&shape, &mut mesh);
+    let h = rect.height().max(1.0);
+    for v in &mut mesh.vertices {
+        let t = ((v.pos.y - rect.top()) / h).clamp(0.0, 1.0);
+        let coverage = v.color.a() as f32 / 255.0;
+        v.color = top.lerp_to_gamma(bottom, t).gamma_multiply(coverage);
+    }
+    painter.add(egui::Shape::mesh(mesh));
+}
+
+/// A white round knob with a soft shadow and a green ring (the sliders'
+/// and the switch's), larger while `hot`.
+pub fn white_knob(painter: &egui::Painter, p: &Palette, center: egui::Pos2, radius: f32, hot: bool, ring: bool) {
+    let r = if hot { radius + 1.0 } else { radius };
+    painter.circle_filled(center + Vec2::new(0.0, 1.5), r + 0.5, p.ink.gamma_multiply(0.18));
+    if hot {
+        painter.circle_filled(center, r + 4.0, p.violet.gamma_multiply(0.22));
+    }
+    painter.circle_filled(center, r, p.field);
+    let edge = if ring { Stroke::new(2.0, p.violet) } else { Stroke::new(1.0, p.raised) };
+    painter.circle_stroke(center, r - edge.width * 0.5, edge);
+}
+
+/// On/off switch: a pill track, a glossy green bubble when on, and a white
+/// round knob that slides in it.
 pub fn switch(ui: &mut egui::Ui, p: &Palette, on: &mut bool) -> egui::Response {
-    // a whole number of pixels around the knob keeps its edges crisp
-    const KNOB: f32 = 14.0;
     let (rect, mut resp) = ui.allocate_exact_size(SWITCH_SIZE, Sense::click());
     if resp.clicked() {
         *on = !*on;
         resp.mark_changed();
     }
     let t = ui.ctx().animate_bool_responsive(resp.id, *on);
-    let track = if *on { p.violet } else { p.raised };
-    let radius = ui.visuals().window_corner_radius;
+    let radius = rect.height() * 0.5;
     let painter = ui.painter();
-    painter.rect_filled(rect, radius, track);
-    let half = rect.height() / 2.0;
-    let x = egui::lerp(rect.left() + half..=rect.right() - half, t);
-    let knob = egui::Rect::from_center_size(egui::pos2(x, rect.center().y), Vec2::splat(KNOB));
-    painter.rect_filled(knob, inner_radius(ui.visuals()), if *on { p.on_accent } else { p.muted });
+    if t > 0.5 {
+        bubble(painter, p, rect, radius, resp.hovered());
+    } else {
+        painter.rect_filled(rect, radius, p.raised); // theme-guard: content — the switch is a pill
+        painter.rect_stroke(rect, radius, Stroke::new(1.0, p.muted_dim.gamma_multiply(0.5)), egui::StrokeKind::Inside); // theme-guard: content — the switch is a pill
+    }
+    let x = egui::lerp(rect.left() + radius..=rect.right() - radius, t);
+    white_knob(painter, p, egui::pos2(x, rect.center().y), radius - 2.0, false, false);
     resp
+}
+
+/// Paints Prototype's slider over a stock `egui::Slider` laid out with the
+/// theme (its handle hidden by the caller): a white round knob at
+/// `fraction` of the rail, the glossy green fill up to it.
+pub fn paint_slider_knob(ui: &egui::Ui, p: &Palette, resp: &egui::Response, fraction: f32) {
+    let width = ui.spacing().slider_width;
+    let height = ui.text_style_height(&egui::TextStyle::Body).max(ui.spacing().interact_size.y);
+    let rect = egui::Rect::from_min_size(egui::pos2(resp.rect.left(), resp.rect.center().y - height * 0.5), Vec2::new(width, height));
+    let r = height / 2.5;
+    let x = egui::lerp(rect.left() + r..=rect.right() - r, fraction.clamp(0.0, 1.0));
+    let rail_h = 6.0;
+    let rail = egui::Rect::from_center_size(rect.center(), Vec2::new(rect.width(), rail_h));
+    let fill = egui::Rect::from_min_max(rail.min, egui::pos2(x, rail.bottom()));
+    let painter = ui.painter();
+    painter.rect_filled(rail, rail_h * 0.5, p.raised.lerp_to_gamma(p.muted_dim, 0.25)); // theme-guard: content — Prototype's slider rail
+    if fill.width() > 1.0 {
+        gradient_rect(painter, fill, rail_h * 0.5, p.violet.lerp_to_gamma(p.field, 0.25), p.violet);
+    }
+    let hot = resp.hovered() || resp.dragged() || resp.has_focus();
+    white_knob(painter, p, egui::pos2(x, rect.center().y), 7.5, hot, true);
 }
 
 /// Check box of the interface, with the contract of `ui.checkbox`: the
@@ -1907,7 +1984,9 @@ pub fn segmented(ui: &mut egui::Ui, p: &Palette, selected: &mut usize, options: 
             (false, _) if resp.hovered() => (Some(p.raised.gamma_multiply(0.5)), p.ink),
             (false, _) => (None, p.muted),
         };
-        if let Some(face) = face {
+        if sel && *accent {
+            bubble(ui.painter(), p, rect, rect.height() * 0.5, resp.hovered());
+        } else if let Some(face) = face {
             ui.painter().rect_filled(rect, inner_radius(ui.visuals()), face);
         }
         let at = letters_in_middle(ui.painter(), &galley, rect);
@@ -2215,21 +2294,11 @@ pub fn height_slider(
             Stroke::new(1.0, p.muted.gamma_multiply(fade)),
         );
         let hot = slider.hovered() || slider.dragged() || slider.has_focus();
-        let knob = egui::Rect::from_center_size(egui::pos2(x, rect.center().y), Vec2::new(half_width * 2.0, rect.height() / 1.25));
-        painter.rect(
-            knob,
-            inner_radius(ui.visuals()),
-            (if subdued {
-                p.muted
-            } else if hot {
-                p.on_accent
-            } else {
-                p.violet_light
-            })
-            .gamma_multiply(fade),
-            Stroke::new(1.0, p.on_accent.gamma_multiply(0.75 * fade)),
-            egui::StrokeKind::Inside,
-        );
+        if subdued {
+            painter.circle_filled(egui::pos2(x, rect.center().y), rect.height() / 2.5, p.muted.gamma_multiply(fade));
+        } else {
+            white_knob(painter, p, egui::pos2(x, rect.center().y), rect.height() / 2.5, hot, true);
+        }
         let numeric = ui.add_sized(
             Vec2::new(78.0, rect.height()),
             egui::DragValue::new(value)

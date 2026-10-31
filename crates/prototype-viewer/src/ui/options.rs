@@ -649,42 +649,76 @@ fn media_pack_error(failure: prototype_updater::Failure) -> &'static str {
     }
 }
 
+/// Hides the stock handle (Prototype paints its own white knob over it).
+fn hide_handle(ui: &mut egui::Ui) {
+    let w = &mut ui.visuals_mut().widgets;
+    for state in [&mut w.inactive, &mut w.hovered, &mut w.active] {
+        state.bg_fill = egui::Color32::TRANSPARENT;
+        state.fg_stroke = egui::Stroke::NONE;
+    }
+}
+
+fn fraction<T: egui::emath::Numeric>(v: T, range: &std::ops::RangeInclusive<T>) -> f32 {
+    let (a, b) = (range.start().to_f64(), range.end().to_f64());
+    if (b - a).abs() < f64::EPSILON { 0.0 } else { ((v.to_f64() - a) / (b - a)) as f32 }
+}
+
 fn slider<T: egui::emath::Numeric>(ui: &mut egui::Ui, v: &mut T, range: std::ops::RangeInclusive<T>, suffix: &str) -> bool {
     ui.spacing_mut().slider_width = SLIDER_W;
-    ui.add(
-        egui::Slider::new(v, range)
-            .suffix(suffix)
-            .custom_parser(prototype_i18n::parse_number)
-            .trailing_fill(true),
-    )
-    .changed()
+    let p = crate::theme::Theme::current_palette(ui.ctx());
+    let resp = ui
+        .scope(|ui| {
+            hide_handle(ui);
+            ui.add(
+                egui::Slider::new(v, range.clone())
+                    .suffix(suffix)
+                    .custom_parser(prototype_i18n::parse_number)
+                    .trailing_fill(false),
+            )
+        })
+        .inner;
+    super::widgets::paint_slider_knob(ui, &p, &resp, fraction(*v, &range));
+    resp.changed()
 }
 
 /// Slider of whole values (the Legacy Viewer's decimal_digits="0").
 fn slider_whole(ui: &mut egui::Ui, v: &mut f32, range: std::ops::RangeInclusive<f32>, suffix: &str) -> bool {
     ui.spacing_mut().slider_width = SLIDER_W;
-    ui.add(
-        egui::Slider::new(v, range)
-            .suffix(suffix)
-            .custom_parser(prototype_i18n::parse_number)
-            .fixed_decimals(0)
-            .step_by(1.0)
-            .trailing_fill(true),
-    )
-    .changed()
+    let p = crate::theme::Theme::current_palette(ui.ctx());
+    let resp = ui
+        .scope(|ui| {
+            hide_handle(ui);
+            ui.add(
+                egui::Slider::new(v, range.clone())
+                    .suffix(suffix)
+                    .custom_parser(prototype_i18n::parse_number)
+                    .fixed_decimals(0)
+                    .step_by(1.0)
+                    .trailing_fill(false),
+            )
+        })
+        .inner;
+    super::widgets::paint_slider_knob(ui, &p, &resp, fraction(*v, &range));
+    resp.changed()
 }
 
 /// Stepped slider with a named level shown next to it.
 fn stepped(ui: &mut egui::Ui, p: &Palette, v: &mut u8, labels: &[&str]) -> bool {
     ui.spacing_mut().slider_width = SLIDER_W - 30.0;
     let max = labels.len().saturating_sub(1) as u8;
-    let r = ui.add(
-        egui::Slider::new(v, 0..=max)
-            .custom_parser(prototype_i18n::parse_number)
-            .step_by(1.0)
-            .trailing_fill(true)
-            .show_value(false),
-    );
+    let r = ui
+        .scope(|ui| {
+            hide_handle(ui);
+            ui.add(
+                egui::Slider::new(v, 0..=max)
+                    .custom_parser(prototype_i18n::parse_number)
+                    .step_by(1.0)
+                    .trailing_fill(false)
+                    .show_value(false),
+            )
+        })
+        .inner;
+    super::widgets::paint_slider_knob(ui, p, &r, fraction(*v, &(0..=max)));
     let label = labels.get((*v).min(max) as usize).copied().unwrap_or("");
     let font = egui::FontId::proportional(12.0);
     let width = labels
@@ -1396,8 +1430,7 @@ fn pill_button(ui: &mut egui::Ui, p: &Palette, label: &str, size: Vec2, main: bo
     let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
     let radius = rect.height() * 0.5;
     if main {
-        ui.painter().rect_filled(rect.expand(3.0), radius + 3.0, p.violet.gamma_multiply(if resp.hovered() { 0.4 } else { 0.25 })); // theme-guard: content — Prototype's pill buttons
-        ui.painter().rect_filled(rect, radius, p.violet); // theme-guard: content — Prototype's pill buttons
+        super::widgets::bubble(ui.painter(), p, rect, radius, resp.hovered());
     } else {
         ui.painter().rect_filled(rect, radius, p.field.gamma_multiply(if resp.hovered() { 0.95 } else { 0.6 })); // theme-guard: content — Prototype's pill buttons
         ui.painter().rect_stroke(rect, radius, egui::Stroke::new(1.5, p.field), egui::StrokeKind::Inside); // theme-guard: content — Prototype's pill buttons
@@ -1423,8 +1456,7 @@ fn pill_tabs(ui: &mut egui::Ui, p: &Palette, tab: &mut usize, labels: &[&str]) -
             let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
             let radius = rect.height() * 0.5;
             if on {
-                ui.painter().rect_filled(rect.expand(2.0), radius + 2.0, p.violet.gamma_multiply(0.22)); // theme-guard: content — Prototype's pill tabs
-                ui.painter().rect_filled(rect, radius, p.violet); // theme-guard: content — Prototype's pill tabs
+                super::widgets::bubble(ui.painter(), p, rect, radius, resp.hovered());
             } else {
                 let face = if resp.hovered() { p.field } else { p.field.gamma_multiply(0.55) };
                 ui.painter().rect_filled(rect, radius, face); // theme-guard: content — Prototype's pill tabs

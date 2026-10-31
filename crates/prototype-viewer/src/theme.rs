@@ -43,15 +43,15 @@ impl Default for Theme {
     /// any of them (the accent presets of Preferences › Appearance do).
     fn default() -> Self {
         Theme {
-            violet: "#1FCB5C".into(),
-            indigo: "#0F9A3E".into(),
+            violet: "#2BD66B".into(),
+            indigo: "#17A94B".into(),
             teal: "#0E9F6E".into(),
             navy: "#E9F2EC".into(),
             panel: "#F6FBF7".into(),
             bar: "#EDF5F0".into(),
             field: "#FFFFFF".into(),
             raised: "#E1ECE5".into(),
-            violet_light: "#4BE07F".into(),
+            violet_light: "#4FDE84".into(),
             violet_pale: "#14833B".into(),
             ink: "#0D2318".into(),
             muted: "#3D5A4A".into(),
@@ -64,7 +64,7 @@ impl Default for Theme {
             danger_dim: "#F4B8B8".into(),
             indigo_light: "#34D399".into(),
             on_accent: "#04210F".into(),
-            panel_alpha: 178,
+            panel_alpha: 196,
             button_radius: 10,
             window_radius: 16,
             font_scale: 1.0,
@@ -88,6 +88,8 @@ pub fn hex(s: &str) -> Color32 {
         Color32::from_rgb(p(0), p(2), p(4))
     }
 }
+
+const PALETTE_KEY: &str = "prototype-palette";
 
 /// Resolved colors for direct use in UI code.
 #[derive(Debug, Clone, Copy)]
@@ -196,8 +198,16 @@ impl Theme {
         }
     }
 
+    /// The palette last applied to `ctx` (the default one before any):
+    /// for the few painters that are not handed one.
+    pub fn current_palette(ctx: &egui::Context) -> Palette {
+        ctx.data(|d| d.get_temp::<Palette>(egui::Id::unique(PALETTE_KEY)))
+            .unwrap_or_else(|| Theme::default().palette())
+    }
+
     pub fn apply(&self, ctx: &egui::Context, extra_font_scale: f32) {
         let p = self.palette();
+        ctx.data_mut(|d| d.insert_temp(egui::Id::unique(PALETTE_KEY), p));
         // `v.text_options` stays at epaint's dark-theme defaults on purpose
         // (compared live in demo and chosen by the human on 2026-10-16):
         // coverage → alpha 2c − c² suits light text on the dark glass, where
