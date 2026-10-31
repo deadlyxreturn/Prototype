@@ -692,7 +692,28 @@ impl<'a> Floater<'a> {
                 }
                 let title_row = ui.horizontal(|ui| {
                     ui.set_min_height(if framed_header.is_some() { 20.0 } else { 28.0 });
-                    let title = RichText::new(&self.title).size(14.0).strong().color(p.ink);
+                    // Prototype: the window's dots on the left, Mac style
+                    // (close, then collapse), then its title
+                    ui.spacing_mut().item_spacing.x = 7.0;
+                    if title_button(ui, p, "x").on_hover_text(prototype_i18n::tr!("common-close")).clicked() {
+                        close = true;
+                    }
+                    // a window with a compact body when minimized says
+                    // so with the Performance window's compact / full
+                    // icons rather than a collapse (#1035)
+                    let (icon, tip) = match (self.compact_minimized.is_some(), minimized) {
+                        (true, true) => ("arrows-maximize", prototype_i18n::tr!("common-full-view")),
+                        (true, false) => ("arrows-minimize", prototype_i18n::tr!("common-compact-view")),
+                        (false, true) => ("minus", prototype_i18n::tr!("common-expand")),
+                        (false, false) => ("minus", prototype_i18n::tr!("common-collapse")),
+                    };
+                    if title_button(ui, p, icon).on_hover_text(tip).clicked() {
+                        toggle_min = true;
+                    }
+                    ui.add_space(6.0);
+                    ui.spacing_mut().item_spacing.x = 8.0;
+                    let big = self.id == "options";
+                    let title = RichText::new(&self.title).size(if big { 20.0 } else { 14.0 }).strong().color(p.ink);
                     // a fixed floater is as wide as its title; a resizable one
                     // cuts a long title short before the buttons (LLFloater
                     // titles end with an ellipsis)
@@ -703,21 +724,6 @@ impl<'a> Floater<'a> {
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.spacing_mut().item_spacing.x = 6.0;
-                        if title_button(ui, p, "x").on_hover_text(prototype_i18n::tr!("common-close")).clicked() {
-                            close = true;
-                        }
-                        // a window with a compact body when minimized says
-                        // so with the Performance window's compact / full
-                        // icons rather than a collapse (#1035)
-                        let (icon, tip) = match (self.compact_minimized.is_some(), minimized) {
-                            (true, true) => ("arrows-maximize", prototype_i18n::tr!("common-full-view")),
-                            (true, false) => ("arrows-minimize", prototype_i18n::tr!("common-compact-view")),
-                            (false, true) => ("minus", prototype_i18n::tr!("common-expand")),
-                            (false, false) => ("minus", prototype_i18n::tr!("common-collapse")),
-                        };
-                        if title_button(ui, p, icon).on_hover_text(tip).clicked() {
-                            toggle_min = true;
-                        }
                         for (icon, tip, clicked) in &mut self.actions {
                             let response = title_button(ui, p, icon).on_hover_text(*tip);
                             #[cfg(test)]
@@ -741,9 +747,14 @@ impl<'a> Floater<'a> {
                         if truncate {
                             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                                 {
-                                    let icon = framed_header.unwrap_or_else(|| workspace::window_icon(self.id));
-                                    let (rect, _) = ui.allocate_exact_size(Vec2::splat(17.0), Sense::hover());
-                                    if let Some(t) = super::icons::global(icon) {
+                                    let icon = if big { "wolf" } else { framed_header.unwrap_or_else(|| workspace::window_icon(self.id)) };
+                                    let (rect, _) = ui.allocate_exact_size(Vec2::splat(if big { 30.0 } else { 17.0 }), Sense::hover());
+                                    let bear = if big { super::prototype_art::texture(ui.ctx(), super::prototype_art::Art::Bear) } else { None };
+                                    if let Some(t) = bear {
+                                        let [w, h] = t.size();
+                                        let fit = egui::Rect::from_center_size(rect.center(), egui::vec2(rect.width(), rect.width() * h as f32 / w.max(1) as f32));
+                                        ui.painter().image(t.id(), fit, egui::Rect::from_min_max(egui::Pos2::ZERO, egui::pos2(1.0, 1.0)), Color32::WHITE); // theme-guard: content — the bear picture untinted
+                                    } else if let Some(t) = super::icons::global(icon) {
                                         ui.painter().image(
                                             t.id(),
                                             rect,

@@ -620,7 +620,7 @@ pub enum FolderChoice {
 
 /// Width of the sidebar, height of the footer.
 const SIDEBAR_W: f32 = 250.0;
-const FOOTER_H: f32 = 52.0;
+const FOOTER_H: f32 = 70.0;
 /// The controls' widths (a slider's rail, a drop-down list).
 const SLIDER_W: f32 = 150.0;
 const COMBO_W: f32 = 190.0;
@@ -1207,9 +1207,11 @@ fn body(ui: &mut egui::Ui, p: &Palette, s: &mut Settings, d: &Settings, st: &mut
     }
     st.demo_open_cogs = false;
 
-    let footer = Rect::from_min_max(pos2(full.left(), full.bottom() - FOOTER_H), full.right_bottom());
-    let side = Rect::from_min_max(full.left_top(), pos2(full.left() + SIDEBAR_W, footer.top()));
-    let main = Rect::from_min_max(pos2(side.right(), full.top()), pos2(full.right(), footer.top()));
+    // Prototype: the sidebar is its own rounded panel inside the window,
+    // the page beside it (the concept's Mac-style window)
+    let footer = Rect::from_min_max(pos2(full.left() + SIDEBAR_W + 16.0, full.bottom() - FOOTER_H), full.right_bottom());
+    let side = Rect::from_min_max(pos2(full.left() + 14.0, full.top() + 6.0), pos2(full.left() + 14.0 + SIDEBAR_W, full.bottom() - 14.0));
+    let main = Rect::from_min_max(pos2(side.right() + 4.0, full.top()), pos2(full.right() - 16.0, footer.top()));
 
     sidebar(ui, p, s, d, st, r, side, now);
     let searching = !st.query.trim().is_empty();
@@ -1234,34 +1236,14 @@ fn sidebar(
     // the column of the Conversations workspace: the bar's colour at 75 %,
     // a hairline at its right
     let corner = ui.visuals().window_corner_radius;
-    ui.painter().rect_filled(
-        side,
-        egui::CornerRadius {
-            sw: corner.sw,
-            ..egui::CornerRadius::ZERO
-        },
-        p.bar.gamma_multiply(0.75),
-    );
-    ui.painter().vline(
-        side.right() - 0.5,
-        side.y_range(),
-        egui::Stroke::new(1.0, p.ink.gamma_multiply(0.04)),
-    );
+    ui.painter().rect_filled(side, corner, p.field.gamma_multiply(0.4));
+    ui.painter().rect_stroke(side, corner, egui::Stroke::new(1.5, p.field), egui::StrokeKind::Inside);
     let mut ui = ui.new_child(
         egui::UiBuilder::new()
             .max_rect(side.shrink2(vec2(10.0, 0.0)))
             .layout(egui::Layout::top_down(egui::Align::Min)),
     );
     ui.add_space(12.0);
-    // Prototype: the bear and the wordmark head the sidebar
-    ui.horizontal(|ui| {
-        let ctx = ui.ctx().clone();
-        if let Some(bear) = super::prototype_art::texture(&ctx, super::prototype_art::Art::Bear) {
-            ui.add(egui::Image::new(&bear).fit_to_exact_size(super::prototype_art::size_at_width(&bear, 40.0)));
-        }
-        ui.label(egui::RichText::new(prototype_i18n::tr!("common-preferences")).size(19.0).strong().color(p.ink));
-    });
-    ui.add_space(10.0);
     let width = ui.available_width();
     ui.horizontal(|ui| {
         let clear_w = if st.query.is_empty() { 0.0 } else { 26.0 };
@@ -1420,6 +1402,26 @@ fn paint_chip(ui: &egui::Ui, p: &Palette, entry: Rect, n: Option<usize>, hit: bo
     let pill = Rect::from_center_size(pos2(entry.right() - 8.0 - w / 2.0, entry.center().y), vec2(w, 17.0));
     ui.painter().rect_filled(pill, ui.visuals().window_corner_radius, face);
     super::widgets::paint_ink_centered(ui.painter(), galley, pill.center(), ink);
+}
+
+/// Prototype's footer buttons: big pills, OK solid green, the others glass.
+fn pill_button(ui: &mut egui::Ui, p: &Palette, label: &str, size: Vec2, main: bool) -> egui::Response {
+    let (rect, resp) = ui.allocate_exact_size(size, Sense::click());
+    let radius = rect.height() * 0.5;
+    if main {
+        ui.painter().rect_filled(rect.expand(3.0), radius + 3.0, p.violet.gamma_multiply(if resp.hovered() { 0.4 } else { 0.25 })); // theme-guard: content — Prototype's pill buttons
+        ui.painter().rect_filled(rect, radius, p.violet); // theme-guard: content — Prototype's pill buttons
+    } else {
+        ui.painter().rect_filled(rect, radius, p.field.gamma_multiply(if resp.hovered() { 0.95 } else { 0.6 })); // theme-guard: content — Prototype's pill buttons
+        ui.painter().rect_stroke(rect, radius, egui::Stroke::new(1.5, p.field), egui::StrokeKind::Inside); // theme-guard: content — Prototype's pill buttons
+    }
+    let ink = if main { p.on_accent } else { p.ink };
+    let galley = ui.painter().layout_no_wrap(label.to_owned(), egui::FontId::proportional(17.0), ink);
+    super::widgets::paint_ink_centered(ui.painter(), galley, rect.center(), ink);
+    if resp.hovered() {
+        ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+    }
+    resp
 }
 
 /// Prototype's page tabs: pills of glass, the chosen one solid green.
@@ -1603,9 +1605,15 @@ fn page_area(
             .hline(line.x_range(), line.center().y, super::widgets::divider_stroke(p));
     }
 
-    // the rows
+    // the rows, on Prototype's rounded card of glass
     let top = ui.cursor().top();
-    let rows_h = (main.bottom() - top).max(0.0);
+    let card = Rect::from_min_max(pos2(main.left() - 4.0, top), pos2(main.right() + 14.0, main.bottom() - 4.0));
+    let radius = ui.visuals().window_corner_radius;
+    ui.painter().rect_filled(card, radius, p.field.gamma_multiply(0.5));
+    ui.painter().rect_stroke(card, radius, egui::Stroke::new(1.5, p.field), egui::StrokeKind::Inside);
+    ui.add_space(10.0);
+    let top = ui.cursor().top();
+    let rows_h = (main.bottom() - 14.0 - top).max(0.0);
     let rows = Rect::from_min_max(pos2(main.left(), top), main.right_bottom());
     let mode = if searching {
         Mode::Search
@@ -1675,11 +1683,6 @@ fn footer_bar(
     close: &mut bool,
     now: f64,
 ) {
-    ui.painter().hline(
-        footer.x_range(),
-        footer.top() + 0.5,
-        egui::Stroke::new(1.0, p.ink.gamma_multiply(0.06)),
-    );
     let mut ui = ui.new_child(
         egui::UiBuilder::new()
             .max_rect(footer.shrink2(vec2(14.0, 0.0)))
@@ -1687,14 +1690,8 @@ fn footer_bar(
     );
     use super::widgets::{ActionKind, action_button};
     let size = Vec2::new(0.0, 28.0);
-    let reset_all = action_button(
-        &mut ui,
-        p,
-        "restore",
-        prototype_i18n::tr!("ui-options-reset-everything-2"),
-        ActionKind::FlatDanger,
-        size,
-    )
+    let width = ui.painter().layout_no_wrap(prototype_i18n::tr!("ui-options-reset-everything-2").to_owned(), egui::FontId::proportional(17.0), p.ink).size().x + 40.0;
+    let reset_all = pill_button(&mut ui, p, prototype_i18n::tr!("ui-options-reset-everything-2"), vec2(width, 46.0), false)
     .on_hover_text(prototype_i18n::tr!("ui-options-reset-all-settings"));
     if reset_all.clicked() {
         let before = Box::new(s.clone());
@@ -1712,7 +1709,8 @@ fn footer_bar(
     }
     if !searching && !st.modified_view {
         let label = prototype_i18n::tr!("ui-options-reset-page", page = st.page.name());
-        let b = action_button(&mut ui, p, "restore", &label, ActionKind::Flat, size)
+        let width = ui.painter().layout_no_wrap(label.clone(), egui::FontId::proportional(17.0), p.ink).size().x + 40.0;
+        let b = pill_button(&mut ui, p, &label, vec2(width, 46.0), false)
             .on_hover_text(prototype_i18n::tr!("ui-options-reset-section-help", section = st.page.name()));
         if b.clicked() {
             reset_page(&mut ui, p, s, d, st, r, now);
@@ -1722,10 +1720,10 @@ fn footer_bar(
         // Prototype: OK closes (the changes are already applied), Cancel
         // puts back the settings as the window opened, then closes
         let ok_label = prototype_i18n::tr!("common-ok");
-        if super::widgets::primary_button_sized(ui, p, ok_label, vec2(120.0, 34.0)).clicked() {
+        if pill_button(ui, p, ok_label, vec2(170.0, 46.0), true).clicked() {
             *close = true;
         }
-        if super::widgets::flat_button_sized(ui, p, prototype_i18n::tr!("common-cancel"), vec2(110.0, 34.0)).clicked() {
+        if pill_button(ui, p, prototype_i18n::tr!("common-cancel"), vec2(140.0, 46.0), false).clicked() {
             if let Some(before) = st.opened_with.take() {
                 *s = *before;
                 r.changed = true;

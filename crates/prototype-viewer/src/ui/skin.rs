@@ -67,7 +67,7 @@ impl Default for Layout {
                 tb("AO", "ao", prototype_i18n::tr!("ao-title")),
                 tb("Command_Preferences_Icon", "preferences", prototype_i18n::tr!("common-preferences")),
             ],
-            chat_bar_fraction: 0.22,
+            chat_bar_fraction: 0.18,
             chat_toasts: true,
             chat_toast_seconds: 20.0,
             name_tag_distance: 64.0,

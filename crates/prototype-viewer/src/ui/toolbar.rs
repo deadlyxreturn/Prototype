@@ -106,7 +106,8 @@ impl BarStyle {
             (Bar::Bottom, false) => Style {
                 mode: ButtonMode::IconsWithText,
                 align: Align::Start,
-                sizing: Sizing::Fill,
+                // each button as wide as its label: no name cut short
+                sizing: Sizing::Auto,
             },
             _ => Style::default(),
         };

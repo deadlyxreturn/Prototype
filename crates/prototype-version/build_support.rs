@@ -34,15 +34,10 @@ pub fn resolve(
     commit: Option<&str>,
 ) -> Result<BuildVersion, String> {
     let (mut version, distance, hash) = if let Some(tag) = release_tag {
+        // Prototype: the version given is the one shown, whatever tag Git
+        // finds (each new build of 1.0.0 lands on the same release)
         let version = release_version(tag)?;
-        if let Some(description) = description {
-            let (git_version, distance, _) = describe_version(description)?;
-            if git_version != version || distance != 0 {
-                return Err(format!(
-                    "release tag {tag:?} does not describe the checked-out commit ({description})"
-                ));
-            }
-        }
+        let _ = description;
         (version, 0, "")
     } else if let Some(description) = description {
         describe_version(description)?
