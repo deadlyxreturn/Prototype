@@ -1,0 +1,3 @@
+[env]
+# Prototype 1.0 by Ryan Johnson: the version the viewer shows and sends
+PROTOTYPE_VERSION_TAG = "v1.0.0"

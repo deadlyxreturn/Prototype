@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Prototype's bear head, white silhouette (tinted by the interface) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 720">
+  <path fill="#ffffff" fill-rule="evenodd" d="
+    M190 120 a95 95 0 1 1 -2 190 a95 95 0 1 1 2 -190 Z
+    M530 120 a95 95 0 1 1 -2 190 a95 95 0 1 1 2 -190 Z
+    M360 170 C520 170 620 280 620 420 C620 560 500 640 360 640 C220 640 100 560 100 420 C100 280 200 170 360 170 Z
+    M215 370 L330 405 L318 455 C280 462 240 448 215 420 Z
+    M505 370 L390 405 L402 455 C440 462 480 448 505 420 Z
+    M360 485 C395 485 420 500 420 520 C420 545 385 560 360 560 C335 560 300 545 300 520 C300 500 325 485 360 485 Z"/>
+</svg>

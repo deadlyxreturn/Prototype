@@ -1,0 +1,50 @@
+# Build output (one target per worktree, never committed)
+/target/
+**/target/
+# The macOS bundle scripts/package-macos.ps1 builds (docs/MACOS.md)
+/Prototype.app/
+
+# Agent worktrees, scratch space and release builds (they live outside the
+# repository, this is a safety net)
+/work/
+/RELEASE/
+
+# The 3D emoji font that older commits downloaded (the 2D one is in git)
+/assets/emoji/Noto-3D-*.ttf
+
+# Firestorm sources: cloned next to the repository, never inside it
+/phoenix-firestorm/
+
+# Cache folders the scene's streamers create where the tests run (the
+# crate's folder): never sources
+/crates/prototype-viewer/anim/
+/crates/prototype-viewer/mat/
+/crates/prototype-viewer/mesh/
+/crates/prototype-viewer/settings/
+/crates/prototype-viewer/sound/
+/crates/prototype-viewer/tex/
+
+# Fuzzing: the corpus libFuzzer grows, the failing inputs, coverage data
+# (fuzz/; the seeds are made by the targets' code)
+/fuzz/corpus/
+/fuzz/artifacts/
+/fuzz/coverage/
+# made from the viewer's Cargo.lock (docs/TESTING.md, "Fuzzing")
+/fuzz/Cargo.lock
+
+# Logs, captures, local settings
+*.log
+*.png.tmp
+/captures/
+.env
+.env.*
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Per-task scratch files (agents)
+/.scratch/

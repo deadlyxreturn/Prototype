@@ -1,0 +1,2 @@
+/* Shown by macOS when voice chat first opens the microphone. */
+"NSMicrophoneUsageDescription" = "PrototypeはSecond Lifeのボイスチャットにマイクを使用します。";

@@ -1,0 +1,43 @@
+{
+  "thread": {
+    "$type": "app.bsky.feed.defs#threadViewPost",
+    "post": {
+      "uri": "at://did:plc:prototypeexampledemo2345abcd/app.bsky.feed.post/3demopost2abc",
+      "cid": "bafyreiprototypeexampledemopostcid",
+      "author": {
+        "did": "did:plc:prototypeexampledemo2345abcd",
+        "handle": "prototype-demo.bsky.social",
+        "displayName": "Prototype Demo",
+        "labels": []
+      },
+      "record": {
+        "$type": "app.bsky.feed.post",
+        "createdAt": "2026-10-26T12:00:00.000Z",
+        "text": "A new build on the plaza"
+      },
+      "embed": {
+        "$type": "app.bsky.embed.images#view",
+        "images": [
+          {
+            "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:prototypeexampledemo2345abcd/bafkreiprototypeexampledemopicture01@jpeg",
+            "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:prototypeexampledemo2345abcd/bafkreiprototypeexampledemopicture01@jpeg",
+            "alt": "A build on the plaza at sunset",
+            "aspectRatio": { "width": 1600, "height": 1200 }
+          },
+          {
+            "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:prototypeexampledemo2345abcd/bafkreiprototypeexampledemopicture02@jpeg",
+            "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:prototypeexampledemo2345abcd/bafkreiprototypeexampledemopicture02@jpeg",
+            "alt": "The same build seen from above"
+          }
+        ]
+      },
+      "replyCount": 2,
+      "repostCount": 1,
+      "likeCount": 12,
+      "quoteCount": 0,
+      "indexedAt": "2026-10-26T12:00:01.000Z",
+      "labels": []
+    },
+    "replies": []
+  }
+}
