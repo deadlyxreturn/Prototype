@@ -59,7 +59,7 @@ impl ExitPrompt {
             ui.set_width(width);
             ui.spacing_mut().item_spacing = Vec2::new(8.0, 10.0);
             ui.horizontal(|ui| {
-                widgets::glyph(ui, "power", p.danger, 20.0);
+                widgets::glyph(ui, "power", p.violet, 20.0);
                 ui.label(RichText::new(prototype_i18n::tr!("exit-title")).size(17.0).strong().color(p.ink));
             });
             ui.label(
@@ -76,7 +76,7 @@ impl ExitPrompt {
             ui.add_space(6.0);
             ui.add_enabled_ui(!busy, |ui| {
                 ui.horizontal(|ui| {
-                    let size = Vec2::new((width - 16.0) / 3.0, 32.0);
+                    let size = Vec2::new((width - 16.0) / 3.0, 38.0);
                     if widgets::action_button(ui, p, "x", prototype_i18n::tr!("common-cancel"), ActionKind::Flat, size).clicked() {
                         action = Some(Action::Cancel);
                     }

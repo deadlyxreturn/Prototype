@@ -1589,10 +1589,16 @@ pub const SWITCH_SIZE: Vec2 = Vec2::new(34.0, 18.0);
 /// and a soft green glow around it (brighter while `hot`). The main buttons,
 /// the chosen tab, segment and sidebar entry, and a switch that is on.
 pub fn bubble(painter: &egui::Painter, p: &Palette, rect: egui::Rect, radius: f32, hot: bool) {
+    bubble_tinted(painter, p, rect, radius, hot, p.violet, p.indigo);
+}
+
+/// `bubble` in another color: `base` its face, `deep` the shade at its foot
+/// (the red of Quit, the amber of a caution).
+pub fn bubble_tinted(painter: &egui::Painter, p: &Palette, rect: egui::Rect, radius: f32, hot: bool, base: Color32, deep: Color32) {
     let radius = radius.min(rect.height() * 0.5);
     let glow = if hot { 0.26 } else { 0.13 };
-    painter.rect_filled(rect.expand(2.0), radius + 2.0, p.violet.gamma_multiply(glow)); // theme-guard: content — Prototype's bubble glow
-    gradient_rect(painter, rect, radius, p.violet.lerp_to_gamma(p.field, 0.18), p.violet.lerp_to_gamma(p.indigo, 0.2));
+    painter.rect_filled(rect.expand(2.0), radius + 2.0, base.gamma_multiply(glow)); // theme-guard: content — Prototype's bubble glow
+    gradient_rect(painter, rect, radius, base.lerp_to_gamma(p.field, 0.18), base.lerp_to_gamma(deep, 0.2));
     let inset = (radius * 0.45).max(3.0);
     let gloss = egui::Rect::from_min_max(
         egui::pos2(rect.left() + inset, rect.top() + 1.5),
@@ -1604,7 +1610,7 @@ pub fn bubble(painter: &egui::Painter, p: &Palette, rect: egui::Rect, radius: f3
     painter.rect_stroke(
         rect,
         radius,
-        Stroke::new(1.0, p.violet.lerp_to_gamma(p.field, 0.55)),
+        Stroke::new(1.0, base.lerp_to_gamma(p.field, 0.55)),
         egui::StrokeKind::Inside,
     ); // theme-guard: content — Prototype's bubble rim
 }
@@ -2465,7 +2471,7 @@ pub fn action_button_keyed(
     let hot = enabled && (resp.hovered() || resp.has_focus());
     let (fill, ink) = match kind {
         ActionKind::Primary => (if hot { p.violet_light } else { p.violet }, p.on_accent),
-        ActionKind::Danger => (if hot { p.danger } else { p.danger.gamma_multiply(0.88) }, p.navy),
+        ActionKind::Danger => (if hot { p.violet_light } else { p.violet }, p.on_accent),
         ActionKind::Caution => (if hot { p.amber } else { p.amber.gamma_multiply(0.88) }, p.navy),
         ActionKind::FlatDanger if hot => (p.danger.gamma_multiply(0.88), p.navy),
         ActionKind::SoftDanger if hot => (p.danger.gamma_multiply(0.88), p.navy),
@@ -2473,14 +2479,36 @@ pub fn action_button_keyed(
         ActionKind::Flat | ActionKind::FlatDanger => (if hot { p.raised.lerp_to_gamma(p.ink, 0.16) } else { p.raised }, p.ink),
     };
     let fade = if enabled { 1.0 } else { 0.45 };
-    let radius = ui.visuals().widgets.inactive.corner_radius;
-    ui.painter().rect_filled(rect, radius, fill.gamma_multiply(fade));
+    // Prototype: pills like Preferences' footer — the main and the warning
+    // actions glossy bubbles, the others white glass
+    let pill = rect.height() * 0.5;
+    let painter = ui.painter();
+    match kind {
+        _ if p.high_contrast || !enabled => {
+            painter.rect_filled(rect, pill, fill.gamma_multiply(fade)); // theme-guard: content — Prototype's pill buttons
+        }
+        ActionKind::Primary => bubble(painter, p, rect, pill, hot),
+        // Prototype is one color: Quit and the other strong actions are green too
+        ActionKind::Danger => bubble(painter, p, rect, pill, hot),
+        ActionKind::Caution => bubble_tinted(painter, p, rect, pill, hot, p.amber, p.amber.lerp_to_gamma(p.ink, 0.35)),
+        ActionKind::FlatDanger | ActionKind::SoftDanger if hot => {
+            bubble_tinted(painter, p, rect, pill, hot, p.danger, p.danger.lerp_to_gamma(p.ink, 0.35));
+        }
+        ActionKind::SoftDanger => {
+            painter.rect_filled(rect, pill, fill); // theme-guard: content — Prototype's pill buttons
+        }
+        ActionKind::Flat | ActionKind::FlatDanger => {
+            painter.rect_filled(rect, pill, p.field.gamma_multiply(if hot { 0.95 } else { 0.6 })); // theme-guard: content — Prototype's pill buttons
+            painter.rect_stroke(rect, pill, Stroke::new(1.5, p.field), egui::StrokeKind::Inside); // theme-guard: content — Prototype's pill buttons
+        }
+    }
+    let radius = pill;
     // high contrast: the dark faces get the buttons' light border, white
     // when hovered (the accent's and the states' faces stand out already)
     if p.high_contrast && matches!(kind, ActionKind::Flat | ActionKind::FlatDanger | ActionKind::SoftDanger) {
         let edge = if hot { p.ink } else { p.muted_dim };
         ui.painter()
-            .rect_stroke(rect, radius, Stroke::new(1.0, edge.gamma_multiply(fade)), egui::StrokeKind::Inside);
+            .rect_stroke(rect, radius, Stroke::new(1.0, edge.gamma_multiply(fade)), egui::StrokeKind::Inside); // theme-guard: content — Prototype's pill buttons
     }
     let ink = ink.gamma_multiply(fade);
     let galley = ui.painter().layout_no_wrap(label.to_owned(), font, ink);

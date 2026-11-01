@@ -600,7 +600,10 @@ pub fn show(
     progress: Option<(&str, f32)>,
 ) -> LoginAction {
     super::prototype_art::set_background_choice(settings.prototype_login_bg);
-    if form.accounts_loaded {
+    // Prototype: one login card for everyone (the mockup's), the saved
+    // accounts still filling it in; the account carousel stays for the
+    // transition it is already playing.
+    if form.accounts_loaded && form.transition.is_some() {
         return carousel::show(ui, p, icons, logo, settings, form, info, progress);
     }
     draw_background(ui, p);
@@ -665,7 +668,7 @@ pub fn show(
                         }
                     }
                     ui.add_space(2.0);
-                    ui.label(RichText::new(client_tagline()).size(12.5).color(p.muted));
+                    ui.label(RichText::new(client_tagline().to_uppercase()).size(12.5).extra_letter_spacing(3.0).color(p.muted));
                     ui.add_space(24.0);
                 });
                 let enabled = !form.busy && !super::grids::is_open(&ctx);
@@ -805,13 +808,7 @@ pub fn show(
                     );
                     super::widgets::paint_ink_centered(ui.painter(), galley, r.center(), txt_col);
                     let disc = egui::Rect::from_center_size(egui::pos2(r.right() - pill, r.center().y), Vec2::splat(r.height() - 10.0));
-                    ui.painter().circle_filled(disc.center(), disc.width() * 0.5 + 3.0, p.violet.gamma_multiply(0.35));
-                    ui.painter().circle_filled(disc.center(), disc.width() * 0.5, p.violet);
-                    ui.painter().circle_filled(
-                        disc.center() - Vec2::new(disc.width() * 0.12, disc.width() * 0.14),
-                        disc.width() * 0.28,
-                        p.violet_light.gamma_multiply(0.55),
-                    );
+                    super::widgets::bubble(ui.painter(), p, disc, disc.width() * 0.5, hot);
                     img(
                         ui,
                         icons,
