@@ -29,7 +29,13 @@ pub fn sidebar(ctx: &Context, p: &Palette, icons: &Icons, info: &LoginInfo, card
 
 fn version(ui: &mut egui::Ui, p: &Palette) {
     let label = prototype_i18n::tr!("ui-login-prototype-viewer-v", value0 = prototype_version::version().to_string());
-    ui.label(RichText::new(label).size(11.5).color(p.muted_dim));
+    // Prototype: the mockup's status pill of frosted glass
+    egui::Frame::new()
+        .fill(p.field.gamma_multiply(0.55))
+        .stroke(egui::Stroke::new(1.0, p.field))
+        .corner_radius(14) // theme-guard: content — Prototype's status pill
+        .inner_margin(egui::Margin::symmetric(14, 7))
+        .show(ui, |ui| ui.label(RichText::new(label).size(12.0).monospace().color(p.muted)));
 }
 
 pub fn footer(ctx: &Context, p: &Palette, icons: &Icons, info: &LoginInfo, sidebar_visible: bool, form: &mut LoginForm) -> LoginAction {
@@ -80,39 +86,36 @@ pub fn footer(ctx: &Context, p: &Palette, icons: &Icons, info: &LoginInfo, sideb
                 action = LoginAction::Accessibility;
             }
         });
-    egui::Area::new(Id::unique("login_quit"))
-        .anchor(egui::Align2::RIGHT_BOTTOM, Vec2::new(-25.0, -20.0))
-        .show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 14.0;
-                if screen.width() >= 1100.0 {
-                    version(ui, p);
-                }
-                if widgets::action_button(
-                    ui,
-                    p,
-                    "power",
-                    prototype_i18n::tr!("common-quit"),
-                    ActionKind::FlatDanger,
-                    Vec2::new(0.0, 30.0),
-                )
-                .clicked()
-                {
-                    action = LoginAction::Quit;
-                }
-            });
-        });
+    if screen.width() >= 1100.0 {
+        egui::Area::new(Id::unique("login_quit"))
+            .anchor(egui::Align2::RIGHT_BOTTOM, Vec2::new(-25.0, -20.0))
+            .show(ctx, |ui| version(ui, p));
+    }
     if form.show_info {
-        let response = widgets::Modal::new(Id::unique("accounts_news_dialog")).show(ctx, |ui| {
-            ui.set_width(340.0);
+        let id = Id::unique("accounts_news_dialog");
+        prototype_render::blurred_backdrop(ctx, egui::Modal::default_area(id).layer());
+        let response = widgets::Modal::new(id).transparent_backdrop().show(ctx, |ui| {
+            ui.set_width(380.0);
+            ui.spacing_mut().item_spacing.y = 8.0;
+            // Prototype: the bear and the name, like Preferences' title row
+            ui.horizontal(|ui| {
+                if let Some(bear) = super::super::prototype_art::texture(ctx, super::super::prototype_art::Art::Bear) {
+                    let size = super::super::prototype_art::size_at_width(&bear, 30.0);
+                    ui.add(egui::Image::new(&bear).fit_to_exact_size(size));
+                }
+                ui.label(RichText::new(prototype_i18n::tr!("ui-login-news")).size(20.0).color(p.ink));
+            });
             if super::version_panel(ui, p, icons, info) {
                 action = LoginAction::CheckUpdates;
             }
             ui.add_space(8.0);
             super::news_panel(ui, p, icons, info, 235.0);
-            if widgets::default_button(ui.button(prototype_i18n::tr!("common-close"))).clicked() {
-                form.show_info = false;
-            }
+            ui.add_space(4.0);
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if widgets::action_button(ui, p, "", prototype_i18n::tr!("common-close"), ActionKind::Primary, Vec2::new(130.0, 40.0)).clicked() {
+                    form.show_info = false;
+                }
+            });
         });
         if response.should_close() {
             form.show_info = false;

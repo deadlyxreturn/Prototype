@@ -464,9 +464,19 @@ fn pill_button(ui: &mut egui::Ui, p: &Palette, icons: &Icons, icon: &str, label:
     resp
 }
 
+/// Prototype's frosted card inside a panel (Preferences' content card).
+fn info_card<R>(ui: &mut egui::Ui, p: &Palette, margin: i8, body: impl FnOnce(&mut egui::Ui) -> R) -> egui::InnerResponse<R> {
+    Frame::new()
+        .fill(p.field.gamma_multiply(0.5))
+        .stroke(Stroke::new(1.5, PILL_EDGE))
+        .corner_radius(18) // theme-guard: content — Prototype's frosted cards
+        .inner_margin(Margin::same(margin))
+        .show(ui, body)
+}
+
 fn version_panel(ui: &mut egui::Ui, p: &Palette, icons: &Icons, info: &LoginInfo) -> bool {
     let mut check_updates = false;
-    card(ui, p, 16, false, |ui| {
+    info_card(ui, p, 16, |ui| {
         ui.set_width(ui.available_width());
         widgets::section_header(ui, p, "tag-filled", prototype_i18n::tr!("ui-login-version"));
         let current = prototype_version::version();
@@ -503,10 +513,10 @@ fn version_panel(ui: &mut egui::Ui, p: &Palette, icons: &Icons, info: &LoginInfo
         });
         if info.can_check_updates {
             ui.add_space(8.0);
-            check_updates =
-                super::widgets::flat_button_sized(ui, p, prototype_i18n::tr!("update-check"), Vec2::new(ui.available_width(), 30.0))
-                    .on_hover_text(prototype_i18n::tr!("update-check-hint"))
-                    .clicked();
+            let size = Vec2::new(ui.available_width(), 36.0);
+            check_updates = widgets::action_button(ui, p, "refresh", prototype_i18n::tr!("update-check"), ActionKind::Flat, size)
+                .on_hover_text(prototype_i18n::tr!("update-check-hint"))
+                .clicked();
         }
         if let VersionState::Available { url, .. } = &info.version
             && !url.is_empty()
@@ -528,7 +538,7 @@ const LINK_MARK: f32 = 13.0;
 /// News card, `height` tall whatever the number of news (the list scrolls).
 fn news_panel(ui: &mut egui::Ui, p: &Palette, icons: &Icons, info: &LoginInfo, height: f32) {
     const MARGIN: i8 = 16;
-    card(ui, p, MARGIN, false, |ui| {
+    info_card(ui, p, MARGIN, |ui| {
         ui.set_width(ui.available_width());
         ui.set_height(height - 2.0 * f32::from(MARGIN));
         widgets::section_header(ui, p, "article-filled", prototype_i18n::tr!("ui-login-news"));
@@ -600,6 +610,11 @@ pub fn show(
     progress: Option<(&str, f32)>,
 ) -> LoginAction {
     super::prototype_art::set_background_choice(settings.prototype_login_bg);
+    // demo: PROTOTYPE_DEMO_LOGIN_INFO opens the news and version panel once
+    static DEMO_INFO: std::sync::Once = std::sync::Once::new();
+    if std::env::var_os("PROTOTYPE_DEMO_LOGIN_INFO").is_some() {
+        DEMO_INFO.call_once(|| form.show_info = true);
+    }
     // Prototype: one login card for everyone (the mockup's), the saved
     // accounts still filling it in; the account carousel stays for the
     // transition it is already playing.
@@ -901,26 +916,26 @@ pub fn show(
             })
             .response
             .rect;
+            // the mockup's "…" in the card's corner: the news and the version
+            let dots = egui::Rect::from_center_size(login_card.right_top() + Vec2::new(-34.0, 30.0), Vec2::splat(26.0));
+            let resp = ui.interact(dots, egui::Id::unique("login_card_more"), Sense::click());
+            let face = if resp.hovered() { p.field.gamma_multiply(0.95) } else { p.field.gamma_multiply(0.45) };
+            ui.painter().circle_filled(dots.center(), 13.0, face);
+            ui.painter().circle_stroke(dots.center(), 12.5, Stroke::new(1.0, p.muted_dim.gamma_multiply(0.6)));
+            for i in -1..=1 {
+                ui.painter().circle_filled(dots.center() + Vec2::new(i as f32 * 5.0, 0.0), 1.6, p.muted);
+            }
+            if resp.hovered() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+            }
+            if resp.on_hover_text(prototype_i18n::tr!("ui-login-news")).clicked() {
+                form.show_info = !form.show_info;
+            }
         });
 
     // ---- version + news (right)
     // Prototype: no news column (the bear of the background stays in view);
     // the update check keeps its button
-    if info.can_check_updates {
-        egui::Area::new(egui::Id::unique("login_check_updates"))
-            // left of the accessibility button and the preferences cogwheel
-            // of `chrome::footer`
-            .anchor(egui::Align2::RIGHT_TOP, Vec2::new(-101.0, 20.0))
-            .show(&ctx, |ui| {
-                if super::widgets::flat_button_sized(ui, p, prototype_i18n::tr!("update-check"), Vec2::new(190.0, 30.0))
-                    .on_hover_text(prototype_i18n::tr!("update-check-hint"))
-                    .clicked()
-                {
-                    action = LoginAction::CheckUpdates;
-                }
-            });
-    }
-
     let chrome_action = chrome::footer(&ctx, p, icons, info, wide, form);
     if !matches!(chrome_action, LoginAction::None) {
         action = chrome_action;
