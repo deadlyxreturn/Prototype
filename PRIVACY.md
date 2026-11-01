@@ -35,5 +35,4 @@ Johnson runs no server that receives data from the viewer.
 ## Contact
 
 Questions: open an issue at
-<https://github.com/deadlyxreturn/Prototype/issues> or visit
-<https://www.prototypesl.com>.
+<https://github.com/deadlyxreturn/Prototype/issues>.
