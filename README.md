@@ -43,6 +43,12 @@ On Windows, `cargo build --release -p prototype-viewer` gives
 Ubuntu, install `build-essential cmake clang pkg-config libasound2-dev
 libudev-dev libxkbcommon-dev libwayland-dev` first.
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://signpath.io), certificate
+by [SignPath Foundation](https://signpath.org). Details, team roles and
+privacy: [CODE_SIGNING.md](CODE_SIGNING.md) and [PRIVACY.md](PRIVACY.md).
+
 ## Licence
 
 Prototype is free software under the GNU General Public License, version 3 or
