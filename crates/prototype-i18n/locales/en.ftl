@@ -4980,6 +4980,7 @@ ui-inventory-recent-set-period = A set period
 ui-inventory-recent-note-period = Recent: the last { $days } d { $hours } h.
 ui-land-general-reclaim-land = Reclaim land
 common-collapse = Collapse
+common-maximize = Maximize
 common-compact-view = Compact view
 common-full-view = Full view
 ui-inventory-controls-collapse-displayed-folders = Collapse displayed folders

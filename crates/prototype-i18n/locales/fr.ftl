@@ -4985,6 +4985,7 @@ ui-inventory-recent-set-period = Une période fixe
 ui-inventory-recent-note-period = Récent : les { $days } j { $hours } h passés.
 ui-land-general-reclaim-land = Récupérer le terrain
 common-collapse = Réduire
+common-maximize = Agrandir
 common-compact-view = Vue compacte
 common-full-view = Vue complète
 ui-inventory-controls-collapse-displayed-folders = Réduire les dossiers affichés

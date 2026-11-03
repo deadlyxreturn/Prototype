@@ -464,6 +464,7 @@ pub fn show(
     let screen = ctx.content_rect();
     let painter = ctx.layer_painter(egui::LayerId::new(egui::Order::Middle, egui::Id::unique("loading_splash")));
     let t = ctx.input(|i| i.time) as f32;
+    matrix_rain(&painter, p, screen, t, 1.0);
     let detail = stage_line(info.stage, info.region, info.terrain, info.objects, info.textures);
     let corner = banner(
         &ctx,
@@ -494,6 +495,55 @@ pub fn show(
             });
     }
     cancel
+}
+
+/// Prototype's loading and teleport screens: a dark green veil with columns
+/// of digits raining down it (the Matrix), the brightest at each column's
+/// head. Every column has its own speed and start, from a hash: nothing is
+/// stored between frames.
+fn matrix_rain(painter: &egui::Painter, p: &Palette, rect: egui::Rect, t: f32, alpha: f32) {
+    const GLYPHS: &[u8] = b"0123456789010110ZX7$#";
+    fn hash(mut x: u32) -> u32 {
+        x ^= x >> 16;
+        x = x.wrapping_mul(0x7feb_352d);
+        x ^= x >> 15;
+        x = x.wrapping_mul(0x846c_a68b);
+        x ^ (x >> 16)
+    }
+    painter.rect_filled(rect, 0.0, p.ink.gamma_multiply(0.86 * alpha)); // theme-guard: content — the Matrix screen's veil
+    let size = 16.0;
+    let font = egui::FontId::monospace(size);
+    let cols = (rect.width() / (size * 1.15)).ceil() as u32;
+    let rows = (rect.height() / size).ceil() as i32 + 1;
+    for col in 0..cols {
+        let h = hash(col.wrapping_mul(2654435761) ^ 0x9e37);
+        let speed = 6.0 + (h % 1000) as f32 / 1000.0 * 10.0; // rows per second
+        let length = 10 + (h >> 10) as i32 % 18;
+        let span = rows + length + (h >> 20) as i32 % 20;
+        let head = ((t * speed + (h % 997) as f32) as i32).rem_euclid(span.max(1));
+        let x = rect.left() + col as f32 * size * 1.15 + size * 0.5;
+        for k in 0..length {
+            let row = head - k;
+            if row < 0 || row >= rows {
+                continue;
+            }
+            let fade = 1.0 - k as f32 / length as f32;
+            let flicker = hash(col ^ ((row as u32) << 12) ^ ((t * 7.0) as u32).wrapping_mul(31));
+            let ch = GLYPHS[(flicker as usize) % GLYPHS.len()] as char;
+            let color = if k == 0 {
+                p.violet.lerp_to_gamma(p.field, 0.75)
+            } else {
+                p.violet.gamma_multiply(fade * 0.85)
+            };
+            painter.text(
+                egui::pos2(x, rect.top() + row as f32 * size),
+                egui::Align2::CENTER_TOP,
+                ch,
+                font.clone(),
+                color.gamma_multiply(alpha),
+            );
+        }
+    }
 }
 
 /// Teleport screen over the world (and the end of the loading screen fading
@@ -531,6 +581,7 @@ pub fn teleport_overlay(
     if !backdrop.is_some_and(|b| b.paint(&painter, p, rect, a)) {
         super::prototype_bg::paint(&painter, p, rect, t, a);
     }
+    matrix_rain(&painter, p, rect, t, a);
     banner(ctx, &painter, p, rect, logo, title, dest, detail, fraction, place, t, a);
     ctx.request_repaint();
 }

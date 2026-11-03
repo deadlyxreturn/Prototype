@@ -638,6 +638,16 @@ impl<'a> Floater<'a> {
                 None => rect,
             }
         });
+        // Prototype's maximize button: one frame placed like the end of a
+        // resize drag, to the whole room or back to where it was
+        let resized = resized.or_else(|| {
+            let key = window_id.with("prototype_max_apply");
+            ctx.data_mut(|d| {
+                let rect = d.get_temp::<egui::Rect>(key);
+                d.remove::<egui::Rect>(key);
+                rect
+            })
+        });
         let size = egui::AreaState::load(ctx, window_id)
             .and_then(|s| s.size)
             .unwrap_or(self.default_size);
@@ -703,24 +713,14 @@ impl<'a> Floater<'a> {
                 }
                 let title_row = ui.horizontal(|ui| {
                     ui.set_min_height(if framed_header.is_some() { 20.0 } else { 28.0 });
-                    // Prototype: the window's dots on the left, Mac style
-                    // (close, then collapse), then its title
-                    ui.spacing_mut().item_spacing.x = 7.0;
-                    if title_button(ui, p, "x").on_hover_text(prototype_i18n::tr!("common-close")).clicked() {
-                        close = true;
-                    }
-                    // a window with a compact body when minimized says
-                    // so with the Performance window's compact / full
-                    // icons rather than a collapse (#1035)
-                    let (icon, tip) = match (self.compact_minimized.is_some(), minimized) {
+                    // Prototype: minimize, maximize and close on the right, like
+                    // every window on Windows (drawn in the right-to-left row below)
+                    let (min_icon, min_tip) = match (self.compact_minimized.is_some(), minimized) {
                         (true, true) => ("arrows-maximize", prototype_i18n::tr!("common-full-view")),
                         (true, false) => ("arrows-minimize", prototype_i18n::tr!("common-compact-view")),
                         (false, true) => ("minus", prototype_i18n::tr!("common-expand")),
                         (false, false) => ("minus", prototype_i18n::tr!("common-collapse")),
                     };
-                    if title_button(ui, p, icon).on_hover_text(tip).clicked() {
-                        toggle_min = true;
-                    }
                     ui.add_space(6.0);
                     ui.spacing_mut().item_spacing.x = 8.0;
                     let big = self.id == super::options::WINDOW;
@@ -737,6 +737,33 @@ impl<'a> Floater<'a> {
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.spacing_mut().item_spacing.x = 6.0;
+                        if title_button(ui, p, "x").on_hover_text(prototype_i18n::tr!("common-close")).clicked() {
+                            close = true;
+                        }
+                        if resizable && !minimized {
+                            let maxed_id = window_id.with("prototype_maxed");
+                            let maxed = ui.ctx().data(|d| d.get_temp::<egui::Rect>(maxed_id));
+                            if title_button(ui, p, "square").on_hover_text(prototype_i18n::tr!("common-maximize")).clicked() {
+                                let apply = match maxed {
+                                    Some(before) => {
+                                        ui.ctx().data_mut(|d| d.remove::<egui::Rect>(maxed_id));
+                                        before
+                                    }
+                                    None => {
+                                        let room = super::layout::move_area(ui.ctx()).shrink(6.0);
+                                        if let Some(rect) = egui::AreaState::load(ui.ctx(), window_id).and_then(|s| s.size.map(|_| s.rect())) {
+                                            ui.ctx().data_mut(|d| d.insert_temp(maxed_id, rect));
+                                        }
+                                        room
+                                    }
+                                };
+                                ui.ctx().data_mut(|d| d.insert_temp(window_id.with("prototype_max_apply"), apply));
+                            }
+                        }
+                        if title_button(ui, p, min_icon).on_hover_text(min_tip).clicked() {
+                            toggle_min = true;
+                        }
+                        ui.add_space(4.0);
                         for (icon, tip, clicked) in &mut self.actions {
                             let response = title_button(ui, p, icon).on_hover_text(*tip);
                             #[cfg(test)]
@@ -1397,7 +1424,7 @@ const EXPAND: &str = "expand";
 
 /// Title bar button with a Tabler icon (drawn by hand if it is missing).
 fn title_button(ui: &mut egui::Ui, p: &Palette, icon: &str) -> egui::Response {
-    title_button_sized(ui, p, icon, Vec2::splat(16.0))
+    title_button_sized(ui, p, icon, Vec2::splat(if matches!(icon, "x" | "minus" | "square" | "arrows-maximize" | "arrows-minimize") { 20.0 } else { 16.0 }))
 }
 
 fn title_button_sized(ui: &mut egui::Ui, p: &Palette, icon: &str, size: Vec2) -> egui::Response {
@@ -1407,25 +1434,35 @@ fn title_button_sized(ui: &mut egui::Ui, p: &Palette, icon: &str, size: Vec2) ->
 }
 
 fn paint_title_button(ui: &egui::Ui, p: &Palette, icon: &str, resp: &egui::Response) {
-    // Prototype: the window's own buttons (close, collapse, compact) are
-    // green glass dots; their glyph shows inside on hover
-    if matches!(icon, "x" | "minus" | "arrows-maximize" | "arrows-minimize") {
+    // Prototype: the window's own buttons (close, minimize, compact) are
+    // green glass bubbles with their white glyph always showing
+    if matches!(icon, "x" | "minus" | "square" | "arrows-maximize" | "arrows-minimize") {
         let c = resp.rect.center();
-        let r = 6.5;
-        ui.painter().circle_filled(c, r + 2.0, p.violet.gamma_multiply(if resp.hovered() { 0.35 } else { 0.18 }));
-        ui.painter().circle_filled(c, r, p.violet);
-        ui.painter().circle_filled(c + Vec2::new(-1.8, -2.0), r * 0.42, p.violet_light.gamma_multiply(0.85));
-        if resp.hovered() {
-            let stroke = Stroke::new(1.4, p.on_accent);
-            match icon {
-                "x" => {
-                    ui.painter().line_segment([c + Vec2::new(-2.6, -2.6), c + Vec2::new(2.6, 2.6)], stroke);
-                    ui.painter().line_segment([c + Vec2::new(2.6, -2.6), c + Vec2::new(-2.6, 2.6)], stroke);
-                }
-                _ => {
-                    ui.painter().line_segment([c + Vec2::new(-3.0, 0.0), c + Vec2::new(3.0, 0.0)], stroke);
-                }
+        let r = 9.0;
+        let hot = resp.hovered();
+        let face = egui::Rect::from_center_size(c, Vec2::splat(r * 2.0));
+        bubble(ui.painter(), p, face, r, hot);
+        let stroke = Stroke::new(if hot { 2.0 } else { 1.7 }, p.field);
+        let painter = ui.painter();
+        match icon {
+            "x" => {
+                painter.line_segment([c + Vec2::new(-3.3, -3.3), c + Vec2::new(3.3, 3.3)], stroke);
+                painter.line_segment([c + Vec2::new(3.3, -3.3), c + Vec2::new(-3.3, 3.3)], stroke);
             }
+            "minus" => {
+                painter.line_segment([c + Vec2::new(-3.8, 0.0), c + Vec2::new(3.8, 0.0)], stroke);
+            }
+            _ => {
+                painter.rect_stroke(
+                    egui::Rect::from_center_size(c, Vec2::splat(6.5)),
+                    1.0,
+                    stroke,
+                    egui::StrokeKind::Middle,
+                ); // theme-guard: content — the compact button's square glyph
+            }
+        }
+        if hot {
+            ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
         }
         return;
     }

@@ -4980,6 +4980,7 @@ ui-inventory-recent-set-period = 期間を指定
 ui-inventory-recent-note-period = 最新：直近{ $days }日{ $hours }時間。
 ui-land-general-reclaim-land = 土地を取り戻す
 common-collapse = 折りたたむ
+common-maximize = 最大化
 common-compact-view = 簡易表示
 common-full-view = 全体表示
 ui-inventory-controls-collapse-displayed-folders = 表示中のフォルダを折りたたむ
