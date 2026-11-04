@@ -420,6 +420,7 @@ impl OutputAdapter {
                 if let Some(tap) = &mut self.tap {
                     tap.write(&self.mix_buf);
                 }
+                crate::record_tap(&self.mix_buf);
                 &self.mix_buf
             }
             Some(rs) => {
@@ -434,6 +435,7 @@ impl OutputAdapter {
                         if let Some(tap) = &mut self.tap {
                             tap.write(&self.mix_buf);
                         }
+                        crate::record_tap(&self.mix_buf);
                         rs.push(&self.mix_buf);
                     }
                 }

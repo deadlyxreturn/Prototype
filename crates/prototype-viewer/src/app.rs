@@ -594,6 +594,8 @@ pub struct App {
     backdrop: ui::backdrop::Backdrop,
     /// Capture the 3D view on the next frame; a capture is on its way.
     want_scene_capture: bool,
+    /// Prototype's video recorder (`recorder.rs`).
+    pub(crate) recorder: crate::recorder::Recorder,
     scene_capture_pending: bool,
     scene_capture_place: Option<(crate::login_accounts::Account, String)>,
     /// Teleport screen: start, end (fade out), destination.
@@ -1457,6 +1459,7 @@ impl App {
             focused: true,
             backdrop,
             want_scene_capture: false,
+            recorder: Default::default(),
             scene_capture_pending: false,
             scene_capture_place: None,
             tp_overlay: None,
@@ -5656,6 +5659,8 @@ impl App {
         if !self.exit_prompt.confirm(action, Instant::now()) {
             return;
         }
+        // a video being recorded is finished and kept
+        self.recorder.stop();
         if self.in_world() {
             self.world.save_open_ims();
         }
@@ -5670,6 +5675,9 @@ impl App {
     /// Log out, save the window, layout, inventory cache and settings, exit.
     fn shutdown(&mut self, event_loop: &ActiveEventLoop) {
         self.instances.leave();
+        // the video's last frames and its sound written before leaving
+        self.recorder.stop();
+        self.recorder.wait(std::time::Duration::from_secs(20));
         // closed while the graphics card still holds a frame, from its
         // notice or not: reported, and the next start offers the safe
         // graphics (app/gpu_stall.rs)
@@ -10757,6 +10765,10 @@ impl App {
                 self.inventory_images.capturing = Some(request);
             }
         }
+        // Prototype's recorder: every frame copied while it records
+        self.recorder.poll();
+        gfx.renderer.record = self.recorder.request();
+        self.panels.recording = self.recorder.recording();
         if self.want_scene_capture
             && !self.scene_capture_pending
             && self.inventory_images.capturing.is_none()
@@ -13082,6 +13094,7 @@ impl App {
             BarAction::CreateLandmark => self.open_create_landmark(None),
             BarAction::PhotoToDisk => self.photo_to_disk(),
             BarAction::PhotoRoll => self.photo_reel_show_newest(),
+            BarAction::Record => self.recorder.toggle(&self.settings.recorder),
             BarAction::LandmarkStar(star) => self.landmark_star(star),
             BarAction::PlaceBar { stretch, rights_text } => {
                 self.settings.place_bar_stretch = stretch;
@@ -14562,7 +14575,8 @@ impl App {
                         projector,
                         self.camera.position,
                         !self.camera.mouselook(),
-                        !self.interface.immersive || self.settings.immersive_name_tags,
+                        (!self.interface.immersive || self.settings.immersive_name_tags)
+                            && !(self.recorder.recording() && self.settings.recorder.hide_name_tags),
                         &self.settings,
                         &mut self.name_tag_visibility,
                         &voice_levels,
@@ -16453,6 +16467,24 @@ impl App {
                     self.settings.save();
                 }
                 ui::beacons::show(&ctx, &p, &mut self.panels.beacons, &mut self.settings);
+                // Prototype's Record window and its badge while recording
+                {
+                    let before = self.settings.recorder.clone();
+                    let wanted = ui::record::window(
+                        &ctx,
+                        &p,
+                        &mut self.panels.record_window,
+                        &mut self.settings.recorder,
+                        &self.recorder,
+                    );
+                    let stop = ui::record::badge(&ctx, &p, &self.recorder);
+                    if wanted.is_some() || stop.is_some() {
+                        self.recorder.toggle(&self.settings.recorder);
+                    }
+                    if self.settings.recorder != before {
+                        self.settings.save();
+                    }
+                }
                 if ui::owned_land::show(&ctx, &p, &mut self.world, &mut self.panels.owned_land) {
                     ui::widgets::open_floater(&ctx, "worldmap", &mut self.panels.world_map);
                 }

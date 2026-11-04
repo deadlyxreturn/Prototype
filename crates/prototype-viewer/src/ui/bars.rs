@@ -25,6 +25,8 @@ use egui::{Color32, RichText, Vec2};
 
 #[derive(Default)]
 pub enum BarAction {
+    /// Prototype's recorder: start or stop a video.
+    Record,
     ToggleVr,
     IkEdit,
     Poser,
@@ -2138,6 +2140,8 @@ pub fn run_command(ctx: &egui::Context, cmd: &str, panels: &mut Panels) -> BarAc
         // without the window (the keyboard's Save to disk)
         "snapshot_to_disk" => return BarAction::PhotoToDisk,
         "photo_roll" => return BarAction::PhotoRoll,
+        // Prototype's Record window (its big button starts the video)
+        "record" => toggle(super::record::WINDOW, &mut panels.record_window),
         "beacons" => toggle(super::beacons::WINDOW, &mut panels.beacons),
         // Floater.Toggle quickprefs
         "quickprefs" => toggle(super::quick_prefs::WINDOW, &mut panels.quick_prefs),
@@ -2230,6 +2234,7 @@ fn command_active(cmd: &str, panels: &Panels, flying: bool, seated: bool, mousel
         "voice" => panels.voice_controls,
         "performance" | "statistics" => panels.perf,
         "snapshot" => panels.snapshot,
+        "record" => panels.record_window || panels.recording,
         "beacons" => panels.beacons,
         "quickprefs" => panels.quick_prefs,
         "preferences" => panels.settings,

@@ -52,6 +52,23 @@ pub use mixer::{Channel, ChannelSettings, ENGINE_SAMPLE_RATE};
 pub use output::OutputInfo;
 pub use processing::{EchoReference, MicProcessing};
 pub use reverb::ReverbParams;
+
+/// Prototype's recorder: while set, a copy of everything the viewer plays
+/// (stereo at [`ENGINE_SAMPLE_RATE`]) goes there; full, a block is dropped
+/// rather than delaying the sound.
+static RECORD_TAP: parking_lot::Mutex<Option<std::sync::mpsc::SyncSender<Vec<f32>>>> = parking_lot::Mutex::new(None);
+
+pub fn set_record_tap(tap: Option<std::sync::mpsc::SyncSender<Vec<f32>>>) {
+    *RECORD_TAP.lock() = tap;
+}
+
+pub(crate) fn record_tap(stereo: &[f32]) {
+    if let Some(tap) = RECORD_TAP.try_lock().as_ref().and_then(|t| t.as_ref())
+        && tap.try_send(stereo.to_vec()).is_err()
+    {
+        // the recorder is behind (or gone): this block is not recorded
+    }
+}
 pub use stream::StreamStatus;
 pub use wind::WindTarget;
 

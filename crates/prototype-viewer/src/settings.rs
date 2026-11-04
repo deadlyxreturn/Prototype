@@ -1008,6 +1008,8 @@ pub struct Settings {
     /// 0 the glass bear in the code rain, 1 the glass wave, 2 the user's
     /// own picture (`login-background.png` or `.jpg` in the config folder).
     pub prototype_login_bg: u8,
+    /// Prototype's built-in video recorder (`recorder.rs`).
+    pub recorder: crate::recorder::RecorderSettings,
     /// The world's hover tips (Preferences › Interface).
     pub hover_tips: HoverTips,
     /// The Legacy Viewer's plain text hover tips with their "i" button
@@ -1958,6 +1960,7 @@ impl Default for Settings {
             classic_chat_lines: false,
             classic_rez_effect: false,
             prototype_login_bg: 0,
+            recorder: Default::default(),
             hover_tips: HoverTips::default(),
             classic_hover_tips: false,
             predict_own_motion: false,
@@ -1991,7 +1994,7 @@ impl Default for Settings {
             plate_click: PlateClick::Nothing,
             plate_shift_click: PlateClick::Nothing,
             plate_ctrl_click: PlateClick::Nothing,
-            chat_style: ChatStyle::Prototype,
+            chat_style: ChatStyle::Legacy,
             link_previews: Default::default(),
             gifs: Default::default(),
             notifications_style: NotificationsStyle::Prototype,

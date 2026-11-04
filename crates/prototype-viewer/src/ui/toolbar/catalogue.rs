@@ -43,6 +43,7 @@ pub const COMMANDS: &[Command] = commands![
     "search", "Command_Search_Icon", "search-title", true;
     "places", "Command_Places_Icon", "common-places", true;
     "snapshot", "Command_Snapshot_Icon", "photo-title", true;
+    "record", "player-record-filled", "recorder-record", true;
     "worldmap", "Command_Map_Icon", "common-world-map", true;
     "minimap", "Command_MiniMap_Icon", "common-mini-map", true;
     "performance", "Command_Performance_Icon", "common-performance", true;

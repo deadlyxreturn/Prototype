@@ -78,6 +78,16 @@ jobs:
           $v = $env:TAG
           $dir = "Prototype-Viewer-$v-windows-x64"
           ./scripts/package.ps1 -Exe target/release/prototype-viewer.exe -Out $dir
+          # Prototype's recorder encodes with FFmpeg (GPL build, its licence
+          # beside it): the graphics card's H.264 encoders and x264
+          $ff = 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip'
+          Invoke-WebRequest -Uri $ff -OutFile ffmpeg.zip
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg-dl
+          $bin = Get-ChildItem ffmpeg-dl -Recurse -Filter ffmpeg.exe | Select-Object -First 1
+          if (-not $bin) { throw 'ffmpeg.exe not found in the download' }
+          Copy-Item $bin.FullName (Join-Path $dir 'ffmpeg.exe')
+          $lic = Get-ChildItem ffmpeg-dl -Recurse -Filter LICENSE.txt | Select-Object -First 1
+          if ($lic) { Copy-Item $lic.FullName (Join-Path $dir 'ffmpeg-LICENSE.txt') }
           Compress-Archive -Path $dir -DestinationPath "$dir.zip"
           $hash = (Get-FileHash -LiteralPath "$dir.zip" -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  $dir.zip" | Set-Content -LiteralPath "$dir.zip.sha256" -Encoding utf8NoBOM

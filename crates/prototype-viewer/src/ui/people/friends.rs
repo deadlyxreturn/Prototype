@@ -10,6 +10,9 @@
 //! pills (FriendsSortOrder), and a contact set can filter the list.
 
 use super::rows::{self, RICH_GAP, RICH_H};
+
+/// A row of the Firestorm-style list (no pictures).
+const COMPACT_H: f32 = 26.0;
 use super::{Ctx, PeopleUi, SORT_NAME, SORT_STATUS, SORT_USERNAME};
 use crate::ui::context::{self, AvatarList, CtxAction};
 use crate::ui::{menu, widgets};
@@ -195,7 +198,9 @@ fn list(ui: &mut egui::Ui, c: &mut Ctx, data: &super::RadarData, st: &mut People
     }
     let sections = c.friends.sort == SORT_STATUS;
     let online = all.iter().filter(|l| l.friend.online).count();
-    if online > 0 && filter.is_empty() {
+    // Prototype: the strip of pictures only while the pictures show (the
+    // Firestorm-style list without them is plain rows)
+    if online > 0 && filter.is_empty() && c.friends.pictures {
         online_now(ui, c, data, st, &all);
     }
     egui::ScrollArea::vertical()
@@ -407,22 +412,27 @@ fn row(ui: &mut egui::Ui, c: &mut Ctx, data: &super::RadarData, st: &mut PeopleU
     let p = c.p;
     let f = &line.friend;
     let width = ui.available_width().min(ui.clip_rect().right() - ui.cursor().left()).max(0.0);
-    let bounds = Rect::from_min_size(ui.cursor().min, Vec2::new(width, RICH_H));
+    // Firestorm's contact list (FriendsListShowIcons off): a short text row,
+    // the status dot in place of the picture
+    let compact = !c.friends.pictures;
+    let row_h = if compact { COMPACT_H } else { RICH_H };
+    let bounds = Rect::from_min_size(ui.cursor().min, Vec2::new(width, row_h));
+    let names_left = |r: Rect| if compact { r.left() + 26.0 } else { rows::names_left(r) };
     let widths = [RECEIVED_W, GRANTED_W];
     let end = rows::end_before(
         bounds,
-        rows::names_left(bounds) + rows::actions_width_for(5, 18.0) + PARTS_GAP,
+        names_left(bounds) + rows::actions_width_for(5, 18.0) + PARTS_GAP,
         &widths,
         PARTS_GAP,
         false,
     );
     let right = end.items.last().map_or(bounds.right(), |r| r.left()) - PARTS_GAP;
     let count = 4 + usize::from(f.online);
-    let (rect, resp) = ui.allocate_exact_size(Vec2::new(width, RICH_H), Sense::click_and_drag());
+    let (rect, resp) = ui.allocate_exact_size(Vec2::new(width, row_h), Sense::click_and_drag());
     if !ui.is_rect_visible(rect) {
         return;
     }
-    if !data.pics.contains_key(&f.id) {
+    if !compact && !data.pics.contains_key(&f.id) {
         st.want_pic(f.id, ui.input(|i| i.time));
     }
     let selected = st.sel.contains(&f.id) || st.sheet == Some(f.id);
@@ -433,12 +443,21 @@ fn row(ui: &mut egui::Ui, c: &mut Ctx, data: &super::RadarData, st: &mut PeopleU
     }
     rows::face(ui, p, rect, selected, hot);
     let identity = rect;
-    let left = rows::names_left(rect);
+    let left = names_left(rect);
     // Keep the permission cells anchored when hover actions appear, as
     // LLAvatarListItem::showPermissions / updateChildren reserve their slots.
     let slot = rows::actions_slot(rect, left, right, count, rows::BUTTON);
     let actions = hot.then(|| (quick_actions(f), slot));
-    rows::picture(ui, p, c.world, identity, data.pics.get(&f.id), f.id, &line.name, false);
+    if compact {
+        let dot = Rect::from_center_size(egui::pos2(rect.left() + 13.0, rect.center().y), Vec2::splat(9.0));
+        let color = if f.online { p.violet } else { p.muted_dim };
+        ui.painter().circle_filled(dot.center(), 4.5, color);
+        if f.online {
+            ui.painter().circle_filled(dot.center(), 7.0, p.violet.gamma_multiply(0.18));
+        }
+    } else {
+        rows::picture(ui, p, c.world, identity, data.pics.get(&f.id), f.id, &line.name, false);
+    }
     let mut clicked_right = false;
     if let Some(cell) = end.items.first() {
         received(ui, p, f, *cell);
@@ -456,7 +475,7 @@ fn row(ui: &mut egui::Ui, c: &mut Ctx, data: &super::RadarData, st: &mut PeopleU
             end.names_right,
             &line.name,
             color,
-            &line.status,
+            if compact { "" } else { &line.status },
             line.set,
             None,
             crate::world::staff::mark(c.world, &f.id),

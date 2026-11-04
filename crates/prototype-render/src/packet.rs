@@ -127,6 +127,8 @@ pub(crate) struct FramePacket {
     /// answered with a later result (drawn_pick.rs).
     pub drawn: Vec<DrawnRequest>,
     pub capture: Option<Capture>,
+    /// Prototype's recorder: copy this frame for the video (`record.rs`).
+    pub record: Option<crate::record::Request>,
     /// Count the luminance histogram of this frame shown at that exposure
     /// (the photo viewfinder; answered a few frames later).
     pub histogram: Option<f32>,

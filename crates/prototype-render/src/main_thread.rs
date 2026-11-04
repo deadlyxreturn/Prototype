@@ -232,6 +232,8 @@ pub struct Renderer {
     held_textures: HeldTextures,
     /// Set to request a copy of the next presented frame.
     pub capture_request: bool,
+    /// Prototype's recorder: every frame is copied for the video while set.
+    pub record: Option<crate::record::Request>,
     /// Capture the 3D view without the interface (next frame) into `captured`.
     pub capture_scene: bool,
     /// Last captured frame (width, height, RGBA8).
@@ -604,6 +606,7 @@ impl Renderer {
             stalled: false,
             held_textures: HeldTextures::default(),
             capture_request: false,
+            record: None,
             capture_scene: false,
             captured: None,
             snapshot_request: None,
@@ -1290,6 +1293,7 @@ impl Renderer {
             picks: std::mem::take(&mut self.pick_requests),
             drawn: std::mem::take(&mut self.drawn_requests),
             capture,
+            record: self.record.clone(),
             histogram: self.histogram_request.take(),
             motion_cut: std::mem::take(&mut self.motion_cut),
             input_at: self.input_at.take(),

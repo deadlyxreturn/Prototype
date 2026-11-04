@@ -205,7 +205,7 @@ impl Default for FriendsSettings {
             // (FSFloaterContacts::sortFriendList) and as the mock-up's
             // friends tab opens
             sort: SORT_STATUS,
-            pictures: true,
+            pictures: false,
             permissions: true,
         }
     }
@@ -1071,6 +1071,6 @@ mod tests {
         // online first (the contact list's order), pictures and rights shown
         let defaults = FriendsSettings::default();
         assert_eq!(defaults.sort, SORT_STATUS);
-        assert!(defaults.pictures && defaults.permissions);
+        assert!(!defaults.pictures && defaults.permissions);
     }
 }

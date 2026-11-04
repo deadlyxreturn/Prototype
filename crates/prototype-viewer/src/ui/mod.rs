@@ -117,6 +117,7 @@ pub mod skin;
 pub mod sky_beacons;
 pub mod snap;
 pub mod snapshot;
+pub mod record;
 pub mod sound_cues;
 pub(crate) mod spelling;
 pub mod staff;
@@ -153,6 +154,10 @@ pub struct Panels {
     pub group_titles: bool,
     /// The photo window (Firestorm's snapshot floater).
     pub snapshot: bool,
+    /// Prototype's recorder is recording (lights its toolbar button).
+    pub recording: bool,
+    /// Prototype's Record window.
+    pub record_window: bool,
     pub people: bool,
     pub minimap: bool,
     /// World map (Ctrl+M).
@@ -234,6 +239,8 @@ impl Panels {
             sim_console: false,
             group_titles: false,
             snapshot: false,
+            recording: false,
+            record_window: false,
             people: settings.show_people,
             minimap: settings.show_minimap,
             world_map: false,

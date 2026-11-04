@@ -7,6 +7,7 @@ mod allocator;
 mod alt_codes;
 mod ao;
 mod app;
+mod recorder;
 mod atomic_file;
 mod autopilot;
 mod autoreplace;

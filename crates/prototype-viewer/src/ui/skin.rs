@@ -63,6 +63,7 @@ impl Default for Layout {
                 tb("Command_Search_Icon", "search", prototype_i18n::tr!("search-title")),
                 tb("Command_Places_Icon", "places", prototype_i18n::tr!("common-places")),
                 tb("Command_Snapshot_Icon", "snapshot", prototype_i18n::tr!("photo-title")),
+                tb("player-record-filled", "record", prototype_i18n::tr!("recorder-record")),
                 tb("Command_Gestures_Icon", "gestures", prototype_i18n::tr!("gesture-title")),
                 tb("AO", "ao", prototype_i18n::tr!("ao-title")),
                 tb("Command_Preferences_Icon", "preferences", prototype_i18n::tr!("common-preferences")),

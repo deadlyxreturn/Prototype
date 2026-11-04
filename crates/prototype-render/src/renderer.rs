@@ -1582,6 +1582,8 @@ pub(crate) struct Backend {
     /// The motion vectors' view (PROTOTYPE_DEBUG_MOTION).
     motion_debug: Option<crate::motion_debug::MotionDebug>,
     rlva_overlays: Option<crate::rlva::overlay::Overlays>,
+    /// Prototype's recorder: the readback buffers in flight (`record.rs`).
+    record_ring: crate::record::Ring,
     rlva_resolution_divisor: u32,
     rlva_scaled: Option<crate::rlva::resolution::Scaled>,
     smaa: Smaa,
@@ -3167,6 +3169,7 @@ impl Backend {
             rlva_spheres: None,
             motion_debug,
             rlva_overlays: None,
+            record_ring: Default::default(),
             rlva_resolution_divisor: 1,
             rlva_scaled: None,
             smaa,
@@ -5528,6 +5531,7 @@ impl Backend {
             picks: Vec::new(),
             drawn: Vec::new(),
             capture: None,
+            record: None,
             histogram: None,
             motion_cut: packet.motion_cut,
             input_at: None,
@@ -5624,10 +5628,21 @@ impl Backend {
             picks,
             drawn,
             capture: wanted,
+            record,
             histogram,
             motion_cut,
             input_at,
         } = packet;
+        // Prototype's recorder: the copies of earlier frames that arrived go
+        // to the encoder (never waited for)
+        {
+            let bgra = matches!(
+                self.config.format,
+                wgpu::TextureFormat::Bgra8Unorm | wgpu::TextureFormat::Bgra8UnormSrgb
+            );
+            self.record_ring.collect(&self.device, record.as_ref().map(|r| &r.sink), bgra);
+        }
+        let record_copy = record.is_some() && output.is_none() && self.config.usage.contains(wgpu::TextureUsages::COPY_SRC);
         let external_output = output.is_some();
         self.motion_cut |= motion_cut;
         let mut stats = RenderStats::default();
@@ -8483,6 +8498,11 @@ impl Backend {
             let source = self.ui_blur.as_ref().map_or(surface_tex.texture(), |blur| &blur.source);
             capture = self.encode_capture(&mut encoder, source, false);
         }
+        if record_copy && record.as_ref().is_some_and(|r| r.scene_only) {
+            let source = self.ui_blur.as_ref().map_or(surface_tex.texture(), |blur| &blur.source);
+            self.record_ring
+                .encode(&self.device, &mut encoder, source, self.config.width, self.config.height);
+        }
         // HUDs retain their original texture colors and never inherit world
         // depth, fog, shadows, exposure or post effects (render_hud_attachments).
         if draw_huds && let Some((_, _, depth)) = &self.hud_depth {
@@ -8571,6 +8591,10 @@ impl Backend {
         if self.gtao_normals_now {
             self.motion_history.encode(&self.device, &mut encoder, &scene);
         }
+        if record_copy && record.as_ref().is_some_and(|r| !r.scene_only) {
+            self.record_ring
+                .encode(&self.device, &mut encoder, surface_tex.texture(), self.config.width, self.config.height);
+        }
         if wanted == Some(Capture::Full) {
             capture = self.encode_capture(&mut encoder, surface_tex.texture(), false);
         } else if snapshot.is_some() {
@@ -8627,6 +8651,7 @@ impl Backend {
         self.motion_kept = self.gtao_normals_now;
         // staging chunks whose copies are now submitted are mapped again
         frame_uploads.after_submit();
+        self.record_ring.after_submit();
         let mut captured = None;
         if let Some((buf, w, h, row)) = capture {
             buf.map_async(wgpu::MapMode::Read, .., |_| {});
