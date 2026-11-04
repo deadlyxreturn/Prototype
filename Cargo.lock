@@ -516,289 +516,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "prototype-assets"
-version = "0.1.0"
-dependencies = [
- "prototype-llsd",
- "base64 0.23.1",
- "cc",
- "crossbeam-channel",
- "flate2",
- "glam 0.34.1",
- "image",
- "log",
- "meshopt",
- "openjpeg-sys",
- "parking_lot 0.13.0",
- "parry3d",
- "rayon",
- "serde_json",
- "thiserror 2.0.21",
- "uuid",
- "vorbis_rs",
-]
-
-[[package]]
-name = "prototype-audio"
-version = "0.1.0"
-dependencies = [
- "prototype-version",
- "cpal",
- "crossbeam-channel",
- "log",
- "parking_lot 0.13.0",
- "rcgen",
- "rtrb",
- "rustls",
- "rustls-platform-verifier",
- "sonora",
- "symphonia",
- "thiserror 2.0.21",
- "url",
-]
-
-[[package]]
-name = "prototype-i18n"
-version = "0.1.0"
-dependencies = [
- "fluent-bundle",
- "fluent-syntax",
- "log",
- "sys-locale",
- "unic-langid",
-]
-
-[[package]]
-name = "prototype-llsd"
-version = "0.1.0"
-dependencies = [
- "base64 0.23.1",
- "chrono",
- "thiserror 2.0.21",
- "uuid",
-]
-
-[[package]]
-name = "prototype-media"
-version = "0.1.0"
-dependencies = [
- "prototype-llsd",
- "env_logger",
- "image",
- "libc",
- "log",
- "pulseaudio",
- "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "prototype-msg"
-version = "0.1.0"
-dependencies = [
- "glam 0.34.1",
- "thiserror 2.0.21",
- "uuid",
-]
-
-[[package]]
-name = "prototype-net"
-version = "0.1.0"
-dependencies = [
- "prototype-assets",
- "prototype-i18n",
- "prototype-llsd",
- "prototype-msg",
- "prototype-prim",
- "prototype-version",
- "base64 0.23.1",
- "bitflags 2.13.2",
- "crossbeam-channel",
- "glam 0.34.1",
- "log",
- "md5",
- "parking_lot 0.13.0",
- "rcgen",
- "reqwest",
- "rustls",
- "rustls-webpki",
- "serde",
- "serde_json",
- "socket2",
- "thiserror 2.0.21",
- "tokio",
- "uuid",
- "webpki-root-certs",
-]
-
-[[package]]
-name = "prototype-prim"
-version = "0.1.0"
-dependencies = [
- "glam 0.34.1",
- "thiserror 2.0.21",
- "uuid",
-]
-
-[[package]]
-name = "prototype-render"
-version = "0.1.0"
-dependencies = [
- "ash",
- "prototype-assets",
- "prototype-llsd",
- "bcdec_rs",
- "bytemuck",
- "egui",
- "egui-wgpu",
- "glam 0.34.1",
- "intel_tex_2",
- "libc",
- "log",
- "naga",
- "objc2 0.6.5",
- "objc2-metal 0.3.2",
- "openxr",
- "parking_lot 0.13.0",
- "pollster 1.0.1",
- "rayon",
- "thiserror 2.0.21",
- "uuid",
- "wgpu",
- "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "prototype-updater"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "prototype-version",
- "directories",
- "log",
- "reqwest",
- "semver",
- "serde",
- "serde_json",
- "sha2",
- "tokio",
- "uuid",
- "windows-sys 0.61.2",
- "zip",
-]
-
-[[package]]
-name = "prototype-version"
-version = "0.1.0"
-dependencies = [
- "semver",
-]
-
-[[package]]
-name = "prototype-viewer"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "arboard",
- "prototype-assets",
- "prototype-audio",
- "prototype-i18n",
- "prototype-llsd",
- "prototype-media",
- "prototype-net",
- "prototype-prim",
- "prototype-render",
- "prototype-updater",
- "prototype-version",
- "prototype-voice",
- "base64 0.23.1",
- "bevy_mikktspace",
- "chrono",
- "chrono-tz",
- "crossbeam-channel",
- "directories",
- "egui",
- "egui-wgpu",
- "egui-winit",
- "emojis",
- "encoding_rs",
- "env_logger",
- "fancy-regex",
- "flate2",
- "foldhash 0.2.0",
- "fontconfig-parser",
- "gilrs-core",
- "glam 0.34.1",
- "hidapi",
- "iana-time-zone",
- "image",
- "keyring",
- "libc",
- "libmimalloc-sys",
- "log",
- "md5",
- "memmap2",
- "mimalloc",
- "objc2 0.6.5",
- "objc2-app-kit 0.3.2",
- "parking_lot 0.13.0",
- "png",
- "pollster 1.0.1",
- "pulldown-cmark",
- "rayon",
- "regex",
- "reqwest",
- "resvg",
- "rfd",
- "ron",
- "serde",
- "serde_json",
- "serde_path_to_error",
- "sha2",
- "softbuffer",
- "spellbook",
- "sysinfo",
- "tokio",
- "trash",
- "ttf-parser",
- "unicode-bidi",
- "unicode-bidi-mirroring",
- "uuid",
- "wayland-client",
- "wgpu",
- "windows",
- "windows-sys 0.61.2",
- "winit",
- "winresource",
- "x11rb",
- "xkbcommon-dl",
- "zbus",
- "zip",
-]
-
-[[package]]
-name = "prototype-voice"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "prototype-audio",
- "prototype-llsd",
- "bytes",
- "glam 0.34.1",
- "log",
- "opus-decoder",
- "parking_lot 0.13.0",
- "reqwest",
- "rtc",
- "rustls",
- "rusty-opus",
- "serde_json",
- "thiserror 2.0.21",
- "tokio",
- "uuid",
- "webrtc",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4611,6 +4328,289 @@ name = "profiling"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3d595e54a326bc53c1c197b32d295e14b169e3cfeaa8dc82b529f947fba6bcf5"
+
+[[package]]
+name = "prototype-assets"
+version = "0.1.0"
+dependencies = [
+ "base64 0.23.1",
+ "cc",
+ "crossbeam-channel",
+ "flate2",
+ "glam 0.34.1",
+ "image",
+ "log",
+ "meshopt",
+ "openjpeg-sys",
+ "parking_lot 0.13.0",
+ "parry3d",
+ "prototype-llsd",
+ "rayon",
+ "serde_json",
+ "thiserror 2.0.21",
+ "uuid",
+ "vorbis_rs",
+]
+
+[[package]]
+name = "prototype-audio"
+version = "0.1.0"
+dependencies = [
+ "cpal",
+ "crossbeam-channel",
+ "log",
+ "parking_lot 0.13.0",
+ "prototype-version",
+ "rcgen",
+ "rtrb",
+ "rustls",
+ "rustls-platform-verifier",
+ "sonora",
+ "symphonia",
+ "thiserror 2.0.21",
+ "url",
+]
+
+[[package]]
+name = "prototype-i18n"
+version = "0.1.0"
+dependencies = [
+ "fluent-bundle",
+ "fluent-syntax",
+ "log",
+ "sys-locale",
+ "unic-langid",
+]
+
+[[package]]
+name = "prototype-llsd"
+version = "0.1.0"
+dependencies = [
+ "base64 0.23.1",
+ "chrono",
+ "thiserror 2.0.21",
+ "uuid",
+]
+
+[[package]]
+name = "prototype-media"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "image",
+ "libc",
+ "log",
+ "prototype-llsd",
+ "pulseaudio",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "prototype-msg"
+version = "0.1.0"
+dependencies = [
+ "glam 0.34.1",
+ "thiserror 2.0.21",
+ "uuid",
+]
+
+[[package]]
+name = "prototype-net"
+version = "0.1.0"
+dependencies = [
+ "base64 0.23.1",
+ "bitflags 2.13.2",
+ "crossbeam-channel",
+ "glam 0.34.1",
+ "log",
+ "md5",
+ "parking_lot 0.13.0",
+ "prototype-assets",
+ "prototype-i18n",
+ "prototype-llsd",
+ "prototype-msg",
+ "prototype-prim",
+ "prototype-version",
+ "rcgen",
+ "reqwest",
+ "rustls",
+ "rustls-webpki",
+ "serde",
+ "serde_json",
+ "socket2",
+ "thiserror 2.0.21",
+ "tokio",
+ "uuid",
+ "webpki-root-certs",
+]
+
+[[package]]
+name = "prototype-prim"
+version = "0.1.0"
+dependencies = [
+ "glam 0.34.1",
+ "thiserror 2.0.21",
+ "uuid",
+]
+
+[[package]]
+name = "prototype-render"
+version = "0.1.0"
+dependencies = [
+ "ash",
+ "bcdec_rs",
+ "bytemuck",
+ "egui",
+ "egui-wgpu",
+ "glam 0.34.1",
+ "intel_tex_2",
+ "libc",
+ "log",
+ "naga",
+ "objc2 0.6.5",
+ "objc2-metal 0.3.2",
+ "openxr",
+ "parking_lot 0.13.0",
+ "pollster 1.0.1",
+ "prototype-assets",
+ "prototype-llsd",
+ "rayon",
+ "thiserror 2.0.21",
+ "uuid",
+ "wgpu",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "prototype-updater"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "directories",
+ "log",
+ "prototype-version",
+ "reqwest",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "uuid",
+ "windows-sys 0.61.2",
+ "zip",
+]
+
+[[package]]
+name = "prototype-version"
+version = "0.1.0"
+dependencies = [
+ "semver",
+]
+
+[[package]]
+name = "prototype-viewer"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arboard",
+ "base64 0.23.1",
+ "bevy_mikktspace",
+ "chrono",
+ "chrono-tz",
+ "crossbeam-channel",
+ "directories",
+ "egui",
+ "egui-wgpu",
+ "egui-winit",
+ "emojis",
+ "encoding_rs",
+ "env_logger",
+ "fancy-regex",
+ "flate2",
+ "foldhash 0.2.0",
+ "fontconfig-parser",
+ "gilrs-core",
+ "glam 0.34.1",
+ "hidapi",
+ "iana-time-zone",
+ "image",
+ "keyring",
+ "libc",
+ "libmimalloc-sys",
+ "log",
+ "md5",
+ "memmap2",
+ "mimalloc",
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "parking_lot 0.13.0",
+ "png",
+ "pollster 1.0.1",
+ "prototype-assets",
+ "prototype-audio",
+ "prototype-i18n",
+ "prototype-llsd",
+ "prototype-media",
+ "prototype-net",
+ "prototype-prim",
+ "prototype-render",
+ "prototype-updater",
+ "prototype-version",
+ "prototype-voice",
+ "pulldown-cmark",
+ "rayon",
+ "regex",
+ "reqwest",
+ "resvg",
+ "rfd",
+ "ron",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "sha2",
+ "softbuffer",
+ "spellbook",
+ "sysinfo",
+ "tokio",
+ "trash",
+ "ttf-parser",
+ "unicode-bidi",
+ "unicode-bidi-mirroring",
+ "uuid",
+ "wayland-client",
+ "wgpu",
+ "windows",
+ "windows-sys 0.61.2",
+ "winit",
+ "winresource",
+ "x11rb",
+ "xkbcommon-dl",
+ "zbus",
+ "zip",
+]
+
+[[package]]
+name = "prototype-voice"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "bytes",
+ "glam 0.34.1",
+ "log",
+ "opus-decoder",
+ "parking_lot 0.13.0",
+ "prototype-audio",
+ "prototype-llsd",
+ "reqwest",
+ "rtc",
+ "rustls",
+ "rusty-opus",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+ "uuid",
+ "webrtc",
+]
 
 [[package]]
 name = "ptr_meta"
