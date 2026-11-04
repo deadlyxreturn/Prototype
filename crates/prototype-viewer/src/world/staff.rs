@@ -9,14 +9,9 @@
 use super::World;
 use uuid::Uuid;
 
-/// The team's avatar keys.
-const TEAM: &[Uuid] = &[
-    uuid::uuid!("348d7782-8438-4480-b482-608ca731b3a8"),
-    uuid::uuid!("eb902302-0a1a-4f51-9ca6-7148822d9e95"),
-    uuid::uuid!("322be05d-8851-4eaf-b4f2-a3347ebde023"),
-    uuid::uuid!("2401c1a6-0dde-4daf-b60f-420473687744"),
-    uuid::uuid!("d94d9882-b0bb-400b-9299-e51e021e921e"),
-];
+/// The team's avatar keys (Prototype's team: none listed yet; the
+/// upstream team is not Prototype's).
+const TEAM: &[Uuid] = &[];
 
 /// Whose staff a resident is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

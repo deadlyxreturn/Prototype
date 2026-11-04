@@ -5,6 +5,7 @@
 //! other pages.
 
 use super::super::cx::{Cx, F, field};
+use crate::build::MoveHologram;
 use crate::settings::{ChatStyle, NotificationsStyle, PhotoWindowStyle, Settings, WorldMapStyle};
 use crate::theme::Palette;
 use crate::world::lookat::{Aim, Style};
@@ -18,7 +19,8 @@ pub enum Look {
     Legacy,
 }
 
-/// Every choice of the page set to one look, and Prototype's water with it;
+/// Every choice of the page set to one look (the colored sky ambient
+/// included), and Prototype's water with it;
 /// the avatar plates' own settings and the filing of received items are
 /// left as they are.
 pub fn set_all(s: &mut Settings, look: Look) {
@@ -57,6 +59,7 @@ pub fn set_all(s: &mut Settings, look: Look) {
     s.predict_own_motion = prototype;
     s.water_effects.enabled = prototype;
     s.synchronize_animations = prototype;
+    s.colored_sky_ambient = prototype;
 }
 
 /// The prototype gradient at `t` (0 at its start, 1 at its end): the brand's
@@ -301,6 +304,13 @@ pub fn page(cx: &mut Cx, tab: usize) {
                     tr!("ui-options-prototype-hover-tips-legacy"),
                     &field!(classic_hover_tips),
                 );
+                // also in Graphics › Sky and environment, the same setting
+                cx.wide().experimental().choice(
+                    tr!("ui-options-colored-sky-ambient"),
+                    tr!("ui-options-colored-sky-ambient-help"),
+                    &field!(colored_sky_ambient),
+                    &[(true, prototype, true), (false, tr!("ui-options-prototype-classic"), false)],
+                );
             });
             cx.group(tr!("common-interface"), |cx| {
                 cx.wide().choice(
@@ -331,6 +341,25 @@ pub fn page(cx: &mut Cx, tab: usize) {
             });
         }
         _ => {
+            cx.group(tr!("ui-options-prototype-building"), |cx| {
+                cx.wide().choice(
+                    tr!("ui-options-prototype-move-hologram"),
+                    tr!("ui-options-prototype-move-hologram-help"),
+                    &field!(build.move_hologram),
+                    &[
+                        (MoveHologram::Off, tr!("ui-options-prototype-move-hologram-off"), false),
+                        (MoveHologram::Moving, tr!("ui-options-prototype-move-hologram-moving"), true),
+                        (MoveHologram::Start, tr!("ui-options-prototype-move-hologram-start"), true),
+                    ],
+                );
+            });
+            cx.group(tr!("ui-options-prototype-bridge"), |cx| {
+                cx.toggle(
+                    tr!("ui-options-prototype-use-bridge"),
+                    tr!("ui-options-prototype-use-bridge-help"),
+                    &field!(use_bridge),
+                );
+            });
             cx.group(tr!("ui-options-prototype-gaze"), |cx| {
                 cx.wide().choice(
                     tr!("ui-options-prototype-aim"),
@@ -390,6 +419,16 @@ mod tests {
         settings.sort_received_items = true;
         set_all(&mut settings, Look::Legacy);
         assert!(settings.sort_received_items);
+    }
+
+    #[test]
+    fn the_two_buttons_set_the_colored_sky_ambient_too() {
+        let mut s = Settings::default();
+        assert!(!s.colored_sky_ambient, "off by default");
+        set_all(&mut s, Look::Prototype);
+        assert!(s.colored_sky_ambient);
+        set_all(&mut s, Look::Legacy);
+        assert!(!s.colored_sky_ambient);
     }
 
     #[test]

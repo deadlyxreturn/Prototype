@@ -64,17 +64,19 @@ pub fn temporary() -> Vec<ObjectUpdate> {
 /// The temporary attachment in the demo's AttachmentResources answer, which
 /// names it, when `PROTOTYPE_DEMO_WORN=temporary`.
 pub fn temporary_resources() -> Option<prototype_net::land::ScriptAttachment> {
-    (std::env::var("PROTOTYPE_DEMO_WORN").as_deref() == Ok("temporary")).then(|| prototype_net::land::ScriptAttachment {
-        location: "Left Hand".into(),
-        objects: vec![prototype_net::land::ScriptObject {
-            id: temporary()[0].full_id,
-            name: prototype_i18n::tr!("demo-worn-temporary-name").into(),
-            owner: DEMO_AGENT,
-            group_owned: false,
-            memory: 64 * 1024,
-            urls: 0,
-            location: None,
-        }],
+    matches!(std::env::var("PROTOTYPE_DEMO_WORN").as_deref(), Ok("temporary" | "temporary-outfit")).then(|| {
+        prototype_net::land::ScriptAttachment {
+            location: "Left Hand".into(),
+            objects: vec![prototype_net::land::ScriptObject {
+                id: temporary()[0].full_id,
+                name: prototype_i18n::tr!("demo-worn-temporary-name").into(),
+                owner: DEMO_AGENT,
+                group_owned: false,
+                memory: 64 * 1024,
+                urls: 0,
+                location: None,
+            }],
+        }
     })
 }
 
@@ -83,6 +85,41 @@ pub fn events() -> Vec<NetEvent> {
         handle: HANDLE,
         objects: linkset(ROOT, POINT),
     }]
+}
+
+/// #1694: a small two-prim book on Right Hand. Only the attachment point
+/// is keyed; the wrist itself stays in the ordinary standing pose.
+pub fn animated_events() -> Vec<NetEvent> {
+    let mut objects = linkset(ROOT, 6);
+    objects[0].position = Vec3::ZERO;
+    objects[0].scale = Vec3::new(0.08, 0.3, 0.4);
+    objects[1].position = Vec3::new(0.05, 0.0, 0.0);
+    objects[1].rotation = Quat::IDENTITY;
+    objects[1].scale = Vec3::new(0.04, 0.27, 0.36);
+    vec![NetEvent::ObjectUpdates { handle: HANDLE, objects }]
+}
+
+pub const POINT_ANIMATION: Uuid = Uuid::from_u128(0xA0E0_1694_0000_0000_0000_0000_0000_0001);
+
+pub fn point_animation() -> prototype_assets::Animation {
+    use prototype_assets::anim::{JointMotion, PosKey, RotKey};
+    let mut anim = idle_animation();
+    anim.joints.push(JointMotion {
+        joint_name: "Right Hand".into(),
+        priority: 4,
+        rot_keys: [(0.0, 0.0), (2.0, 2.5), (4.0, 0.0)]
+            .into_iter()
+            .map(|(time, angle)| RotKey {
+                time,
+                rotation: Quat::from_rotation_y(angle),
+            })
+            .collect(),
+        pos_keys: [(0.0, Vec3::ZERO), (2.0, Vec3::new(0.6, 0.0, 0.8)), (4.0, Vec3::ZERO)]
+            .into_iter()
+            .map(|(time, position)| PosKey { time, position })
+            .collect(),
+    });
+    anim
 }
 
 /// The inventory item of the worn object ("Demo backpack"): the object id

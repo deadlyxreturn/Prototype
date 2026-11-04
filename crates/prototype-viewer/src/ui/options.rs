@@ -19,6 +19,7 @@ use super::icons::Icons;
 use super::widgets::{Floater, keycap};
 use crate::settings::Settings;
 use crate::theme::Palette;
+use crate::ui::widgets;
 use cx::{Counts, Cx, Mode};
 use egui::{Rect, RichText, Sense, Vec2, pos2, vec2};
 use std::collections::{HashMap, HashSet};
@@ -278,6 +279,7 @@ pub fn demo(st: &mut OptionsUi, value: &str) {
         "gifs" => row(Page::Chat, 0, tr!("ui-options-gifs-show")),
         "script-errors" => row(Page::Chat, 0, tr!("ui-options-script-errors-in-chat")),
         "crosshair" => row(Page::Camera, 2, tr!("ui-options-crosshair-image")),
+        "joystick-zoom" => row(Page::Controls, 1, tr!("joystick-zoom-mode")),
         "recent" | "recent-period" => row(Page::Inventory, 0, tr!("ui-inventory-recent-period")),
         "auto-accept" => row(Page::Inventory, 0, tr!("received-auto-accept")),
         "animations" | "animations-sync" => row(Page::Prototype, 2, tr!("ui-options-prototype-animation-clock")),
@@ -300,6 +302,8 @@ pub fn demo(st: &mut OptionsUi, value: &str) {
         st.modified_view = true;
     } else if what == "cogs" {
         st.demo_open_cogs = true;
+    } else if what == "system-fonts" || what == "system-fonts-scroll" {
+        st.demo_font_list = Some(what == "system-fonts-scroll");
     } else if let Some(query) = what.strip_prefix("search=") {
         st.query = query.to_owned();
     } else if page == Page::Shortcuts && !what.is_empty() && what != "altgr" && st.reveal.is_none() {
@@ -339,6 +343,8 @@ pub struct OptionsUi {
     pub rlva_restrictions: Vec<(uuid::Uuid, String)>,
     pub rlva_camera_preset_locked: bool,
     pub rlva_camera_fov_locked: bool,
+    /// RLVa `@sendim`: the Do Not Disturb response is an IM, its field greyed.
+    pub rlva_sendim_locked: bool,
     pub joystick: crate::joystick::Snapshot,
     pub flycam_active: bool,
     pub anti_spam_blocks: Vec<(crate::world::anti_spam::Queue, uuid::Uuid, String)>,
@@ -353,10 +359,10 @@ pub struct OptionsUi {
     opened_with: Option<Box<Settings>>,
     focus_search: bool,
     pub modified_view: bool,
-    /// Measured each frame (`Cx`): the size of each row's control, the
-    /// number of rows behind each cog and whether its row is off, the cogs
-    /// open, the counts of the sidebar.
-    control_sizes: HashMap<egui::Id, Vec2>,
+    /// Measured each frame (`Cx`): each row's control size and available
+    /// width, the number of rows behind each cog and whether its row is off,
+    /// the cogs open, and the sidebar counts.
+    control_sizes: HashMap<egui::Id, (f32, Vec2)>,
     subs: HashMap<egui::Id, (usize, bool)>,
     open_subs: HashSet<egui::Id>,
     counts: Counts,
@@ -382,6 +388,9 @@ pub struct OptionsUi {
     pub demo_reset: bool,
     /// Open every cog once counted (`PROTOTYPE_DEMO_OPTIONS=…:cogs`, captures).
     pub demo_open_cogs: bool,
+    /// Keep the system font list open, scrolling it when true
+    /// (`PROTOTYPE_DEMO_OPTIONS=appearance:system-fonts`, `…:system-fonts-scroll`).
+    pub demo_font_list: Option<bool>,
     interface_scale: scale::ScaleSlider,
     text_scale: scale::ScaleSlider,
     /// The account's content ceiling and the rating it wants, while logged
@@ -390,6 +399,12 @@ pub struct OptionsUi {
     /// The account settings the grid keeps (Privacy), while logged in (set
     /// by the app).
     pub account: Option<privacy::Account>,
+    /// The session's "Show my favorite landmarks at login", while logged in
+    /// with an account the login screen remembers (set by the app).
+    pub login_favorites: Option<bool>,
+    /// The account's "Keep Show Friends Only after teleporting", while
+    /// logged in (set by the app).
+    pub friends_only_keep: Option<bool>,
     system_fonts: Option<Vec<SystemFont>>,
     font_filter: String,
     /// Disk cache usage (bytes) and whether a clear is running; set by the app.
@@ -436,6 +451,7 @@ pub struct OptionsUi {
     crosshair_dialog: Option<std::sync::mpsc::Receiver<std::path::PathBuf>>,
     /// Shortcut or gesture waiting for its next input, captured by the app.
     pub capture: Option<Capture>,
+    joystick_capture: Option<pages::joystick::JoystickCapture>,
     capture_modifier: Option<winit::keyboard::KeyCode>,
     clear: Option<(crate::keybinds::Action, usize)>,
     /// Sound assets being typed (Legacy name -> text).
@@ -461,6 +477,20 @@ pub struct OptionsUi {
 }
 
 impl OptionsUi {
+    pub fn joystick_capturing(&self) -> bool {
+        self.joystick_capture.is_some()
+    }
+
+    pub fn cancel_capture(&mut self) {
+        self.capture = None;
+        self.capture_modifier = None;
+        self.joystick_capture = None;
+    }
+
+    pub fn cancel_joystick_capture(&mut self) {
+        self.joystick_capture = None;
+    }
+
     pub fn prepare_scale_input(&mut self, input: &egui::RawInput, pixels_per_point: f32, numeric_captured: bool) {
         self.interface_scale.prepare_input(input, pixels_per_point, numeric_captured);
         self.text_scale.prepare_input(input, pixels_per_point, numeric_captured);
@@ -502,7 +532,7 @@ impl OptionsUi {
         self.tab = tab;
         self.query.clear();
         self.modified_view = false;
-        self.capture = None;
+        self.cancel_capture();
     }
 
     /// Opens the Chat page on the YouTube player's settings (a player's
@@ -542,7 +572,7 @@ impl OptionsUi {
         r.audio_changed |= matches!(page, Page::Sound | Page::Media);
         r.reset_camera |= matches!(page, Page::Camera);
         r.ui_scale_changed |= matches!(page, Page::Layout);
-        self.capture = None;
+        self.cancel_capture();
         self.keyword_sound_text = None;
         self.ui_sound_text.clear();
         self.trusted_site_typed.clear();
@@ -593,6 +623,10 @@ pub struct OptionsResult {
     pub maturity: Option<u8>,
     /// An account setting of Privacy changed, to send to the server.
     pub account: Option<crate::world::user_info::Change>,
+    /// "Show my favorite landmarks at login" switched (Privacy).
+    pub login_favorites: Option<bool>,
+    /// "Keep Show Friends Only after teleporting" switched (Controls).
+    pub friends_only_keep: Option<bool>,
     /// Open the Dev Toolbox (Network and cache › Logs and tools).
     pub open_dev_toolbox: bool,
     /// Back up the settings to a file the user chooses.
@@ -669,12 +703,13 @@ fn slider<T: egui::emath::Numeric>(ui: &mut egui::Ui, v: &mut T, range: std::ops
     let resp = ui
         .scope(|ui| {
             hide_handle(ui);
-            ui.add(
+            ui.add(widgets::restricted_number(
                 egui::Slider::new(v, range.clone())
                     .suffix(suffix)
                     .custom_parser(prototype_i18n::parse_number)
                     .trailing_fill(false),
-            )
+                widgets::TextPolicy::Decimal,
+            ))
         })
         .inner;
     super::widgets::paint_slider_knob(ui, &p, &resp, fraction(*v, &range));
@@ -688,14 +723,15 @@ fn slider_whole(ui: &mut egui::Ui, v: &mut f32, range: std::ops::RangeInclusive<
     let resp = ui
         .scope(|ui| {
             hide_handle(ui);
-            ui.add(
+            ui.add(widgets::restricted_number(
                 egui::Slider::new(v, range.clone())
                     .suffix(suffix)
                     .custom_parser(prototype_i18n::parse_number)
                     .fixed_decimals(0)
                     .step_by(1.0)
                     .trailing_fill(false),
-            )
+                widgets::TextPolicy::Decimal,
+            ))
         })
         .inner;
     super::widgets::paint_slider_knob(ui, &p, &resp, fraction(*v, &range));
@@ -972,8 +1008,10 @@ fn binding_cell(
     let caps_left = egui::pos2(resp.rect.center().x - caps_width / 2.0, resp.rect.center().y);
     keycap::paint_row(ui, p, &caps, caps_left, fill);
     if resp.clicked() {
-        st.capture_modifier = None;
-        st.capture = if capturing { None } else { Some(Capture::Binding(a, slot)) };
+        st.cancel_capture();
+        if !capturing {
+            st.capture = Some(Capture::Binding(a, slot));
+        }
     }
     if resp.secondary_clicked() && b.is_some() {
         st.clear = Some((a, slot));
@@ -1118,6 +1156,9 @@ fn reset_rows(
 
 pub fn show(ctx: &egui::Context, p: &Palette, icons: &Icons, s: &mut Settings, st: &mut OptionsUi, open: &mut bool) -> OptionsResult {
     let _ = icons;
+    if let Some(capture) = &mut st.joystick_capture {
+        capture.hide();
+    }
     st.focus_search = *open && (st.focus_search || !st.was_open);
     if *open && !st.was_open && st.opened_with.is_none() {
         st.opened_with = Some(Box::new(s.clone()));
@@ -1153,7 +1194,7 @@ pub fn show(ctx: &egui::Context, p: &Palette, icons: &Icons, s: &mut Settings, s
     if searched {
         st.query = query;
         st.modified_view = false;
-        st.capture = None;
+        st.cancel_capture();
     }
     if close {
         *open = false;
@@ -1162,6 +1203,9 @@ pub fn show(ctx: &egui::Context, p: &Palette, icons: &Icons, s: &mut Settings, s
         st.opened_with = None;
     }
     st.was_open = *open && !super::widgets::floater_minimized(ctx, WINDOW);
+    if !st.was_open || st.joystick_capture.as_ref().is_some_and(|capture| !capture.visible()) {
+        st.cancel_joystick_capture();
+    }
     if !*open {
         // the window closed: a reset waiting for its undo is done
         st.finish_undo(&mut r);
@@ -1331,7 +1375,7 @@ fn sidebar(
             if entry.clicked() {
                 st.query.clear();
                 st.modified_view = true;
-                st.capture = None;
+                st.cancel_capture();
             }
             for page in Page::ALL.into_iter().skip(1) {
                 if let Some(title) = page.section() {
@@ -1614,7 +1658,7 @@ fn page_area(
     ui.add_space(10.0);
     if !searching && !modified_view && tabs.len() > 1 {
         if pill_tabs(&mut ui, p, &mut st.tab, &tabs) {
-            st.capture = None;
+            st.cancel_capture();
             st.flash = None;
         }
         ui.add_space(6.0);
@@ -1648,6 +1692,10 @@ fn page_area(
     };
     let query = st.query.clone();
     let tab = st.tab;
+    // Reserve the full scrollbar strip before entering the scroll area.
+    // Its animated appearance otherwise changes the cells' width, invalidates
+    // their control measurements and can alternate short/tall rows forever.
+    let rows_width = (super::widgets::scrolled_width(&ui) - 6.0).max(0.0);
     egui::ScrollArea::vertical()
         .id_salt(scroll_id)
         .auto_shrink([false, false])
@@ -1655,7 +1703,7 @@ fn page_area(
         .min_scrolled_height(rows_h)
         .show(&mut ui, |ui| {
             ui.spacing_mut().item_spacing.y = 0.0;
-            ui.set_width(ui.available_width() - 6.0);
+            ui.set_width(rows_width);
             ui.add_space(4.0);
             let mut cx = Cx::new(ui, *p, s, d, st, r, mode, &query);
             match mode {

@@ -23,9 +23,11 @@ mod editing;
 pub mod effects;
 pub mod environment;
 mod events;
+mod force_wear;
 mod groups;
 mod im_queries;
 mod inventory;
+pub mod last_points;
 pub mod login;
 mod naming;
 pub mod offers;
@@ -40,6 +42,9 @@ mod temporary;
 mod version;
 mod wardrobe;
 pub mod watchdog;
+mod wear_locks;
+
+pub use wear_locks::WearLocks;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Param {
@@ -446,6 +451,8 @@ pub struct Rlva {
     pub pending: Vec<(Uuid, Command)>,
     pub out: Vec<NetCommand>,
     pub appearance: Vec<(Uuid, super::appearance::Action)>,
+    /// Attachments a forced batch asked for, not arrived yet (`rlva_force_settled`).
+    pub requested_wears: std::collections::HashMap<Uuid, std::time::Instant>,
     pub viewer: Vec<(Uuid, Command)>,
     pub camera_values: BTreeMap<String, String>,
     pub groups: groups::Groups,
@@ -454,6 +461,9 @@ pub struct Rlva {
     pub visuals: effects::Visuals,
     pub watchdog: watchdog::Watchdog,
     pub(crate) locked_folders: inventory::LockedFoldersCache,
+    pub(crate) wear_folders: wear_locks::FolderSetsCache,
+    /// The point each object was last seen attached to, per account.
+    pub last_points: last_points::LastPoints,
     pub recovery: Vec<NetCommand>,
     pub environment: Option<(Uuid, super::eep::SkyFrame)>,
     pub environment_water: Option<super::eep::WaterFrame>,

@@ -1,10 +1,10 @@
 """Blender editing to Prototype's animated avatar, without uploading assets."""
 
 bl_info = {
-    "name": "Prototype LiveMesh", "author": "Prototype contributors",
-    "version": (0, 14, 7), "blender": (2, 93, 0),
+    "name": "Prototype LiveMesh", "author": "Prototype Viewer contributors",
+    "version": (0, 14, 10), "blender": (2, 93, 0),
     "location": "View3D > Sidebar > Prototype", "category": "3D View",
-    "description": "Preview rigged and static mesh edits live in Prototype",
+    "description": "Preview rigged and static mesh edits live in Prototype Viewer",
 }
 
 _reloading = "bpy" in globals()
@@ -558,7 +558,7 @@ _translations = {"fr_FR": {(context, key): value for context in ("*", "Operator"
     "Copy error": "Copier l’erreur", "Error copied": "Erreur copiée",
     "Copy the complete object name and synchronization error": "Copier le nom complet de l’objet et son erreur de synchronisation",
     "Show this object's synchronization error and copy its details": "Afficher l’erreur de synchronisation de cet objet et copier les détails",
-    "Update Prototype to preview this large object": "Mettez à jour Prototype pour afficher cet objet volumineux",
+    "Update Prototype Viewer to preview this large object": "Mettez à jour Prototype Viewer pour afficher cet objet volumineux",
     "This object exceeds the LiveMesh transfer limit; reduce its geometry or textures":
         "Cet objet dépasse la limite de transfert LiveMesh ; réduisez sa géométrie ou ses textures",
     "LiveMesh update failed: {error}": "Échec de la mise à jour LiveMesh : {error}",
@@ -582,8 +582,8 @@ _translations = {"fr_FR": {(context, key): value for context in ("*", "Operator"
     "LOD bind matrices disagree with High": "Les matrices de liaison des LOD diffèrent de celles de High",
     "Import LODs exceed 110 avatar joints": "Les LOD de l’import dépassent 110 articulations",
     "The requested source is no longer in this scene's live list": "L’objet demandé ne figure plus dans la liste live de cette scène",
-    "Waiting for Prototype: Update Prototype to use live PBR materials":
-        "Mettez à jour Prototype pour utiliser les matériaux PBR live",
+    "Waiting for Prototype: Update Prototype Viewer to use live PBR materials":
+        "Mettez à jour Prototype Viewer pour utiliser les matériaux PBR live",
     "Live materials use the mesh's active UV map": "Les matériaux live utilisent la carte UV active du maillage",
     "Use UV coordinates for live image textures": "Utilisez les coordonnées UV pour les textures image live",
     "Live UV mapping supports Z rotation only": "Le mapping UV live accepte uniquement la rotation autour de Z",
@@ -769,8 +769,8 @@ _translations = {"fr_FR": {(context, key): value for context in ("*", "Operator"
         "Retirer cette entrée de la liste d’aperçu Prototype ; conserver l’objet Blender",
     "Missing object": "Objet manquant", "{enabled} / {total} enabled": "{enabled} / {total} actifs",
     "Add selected meshes to start syncing.": "Ajoutez la sélection pour commencer.",
-    "Update Prototype to preview non-rigged meshes": "Mettez Prototype à jour pour prévisualiser les maillages non riggés",
-    "Update Prototype to preview linked objects": "Mettez Prototype à jour pour prévisualiser les objets liés",
+    "Update Prototype Viewer to preview non-rigged meshes": "Mettez Prototype Viewer à jour pour prévisualiser les maillages non riggés",
+    "Update Prototype Viewer to preview linked objects": "Mettez Prototype Viewer à jour pour prévisualiser les objets liés",
     "Select one or more rigged meshes first": "Sélectionnez d’abord un ou plusieurs maillages riggés",
     "Update now": "Mettre à jour maintenant", "Prototype port": "Port Prototype",
     "Automatic updates": "Mise à jour automatique", "Interval (seconds)": "Intervalle (secondes)",
