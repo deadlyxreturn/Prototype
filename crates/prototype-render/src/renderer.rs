@@ -8498,10 +8498,12 @@ impl Backend {
             let source = self.ui_blur.as_ref().map_or(surface_tex.texture(), |blur| &blur.source);
             capture = self.encode_capture(&mut encoder, source, false);
         }
-        if record_copy && record.as_ref().is_some_and(|r| r.scene_only) {
+        if record_copy
+            && let Some(r) = record.as_ref().filter(|r| r.wants().0)
+        {
             let source = self.ui_blur.as_ref().map_or(surface_tex.texture(), |blur| &blur.source);
             self.record_ring
-                .encode(&self.device, &mut encoder, source, self.config.width, self.config.height);
+                .encode(&self.device, &mut encoder, r, source, self.config.width, self.config.height, true);
         }
         // HUDs retain their original texture colors and never inherit world
         // depth, fog, shadows, exposure or post effects (render_hud_attachments).
@@ -8591,9 +8593,11 @@ impl Backend {
         if self.gtao_normals_now {
             self.motion_history.encode(&self.device, &mut encoder, &scene);
         }
-        if record_copy && record.as_ref().is_some_and(|r| !r.scene_only) {
+        if record_copy
+            && let Some(r) = record.as_ref().filter(|r| r.wants().1)
+        {
             self.record_ring
-                .encode(&self.device, &mut encoder, surface_tex.texture(), self.config.width, self.config.height);
+                .encode(&self.device, &mut encoder, r, surface_tex.texture(), self.config.width, self.config.height, false);
         }
         if wanted == Some(Capture::Full) {
             capture = self.encode_capture(&mut encoder, surface_tex.texture(), false);

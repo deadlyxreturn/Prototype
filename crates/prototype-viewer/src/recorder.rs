@@ -6,7 +6,7 @@
 //! own sound is written beside the video and joined to it at the end, so a
 //! clip is one MP4 file in the chosen folder.
 
-use prototype_render::record::{Frame, Request};
+use prototype_render::record::{Frame, Mode, Request};
 use serde::{Deserialize, Serialize};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
@@ -23,9 +23,11 @@ pub struct RecorderSettings {
     pub fps: u32,
     /// 0 standard, 1 high, 2 best.
     pub quality: u8,
-    /// The menus, windows and bars are in the video too (else the 3D view
-    /// alone).
-    pub include_interface: bool,
+    /// What the video shows: 0 the 3D view alone, 1 with the bars (the
+    /// windows left out), 2 the whole screen.
+    pub content: u8,
+    /// The mouse pointer is drawn into the video.
+    pub cursor: bool,
     /// The avatars' name tags are hidden while recording.
     pub hide_name_tags: bool,
     /// The viewer's sound is recorded with the video.
@@ -39,7 +41,8 @@ impl Default for RecorderSettings {
         RecorderSettings {
             fps: 60,
             quality: 1,
-            include_interface: false,
+            content: 0,
+            cursor: false,
             hide_name_tags: false,
             sound: true,
             folder: String::new(),
@@ -74,7 +77,8 @@ pub enum Notice {
 
 struct Session {
     started: Instant,
-    scene_only: bool,
+    mode: Mode,
+    cursor: bool,
     sink: SyncSender<Frame>,
     worker: JoinHandle<Result<PathBuf, String>>,
 }
@@ -101,10 +105,13 @@ impl Recorder {
         self.session.as_ref().map_or(Duration::ZERO, |s| s.started.elapsed())
     }
 
-    /// The request the renderer gets with every frame while recording.
-    pub fn request(&self) -> Option<Request> {
+    /// The request the renderer gets with every frame while recording:
+    /// `windows` the windows' rectangles and `pointer` the mouse, in pixels.
+    pub fn request(&self, windows: &[[u32; 4]], pointer: Option<[f32; 2]>) -> Option<Request> {
         self.session.as_ref().map(|s| Request {
-            scene_only: s.scene_only,
+            mode: s.mode,
+            holes: if s.mode == Mode::Bars { windows.to_vec() } else { Vec::new() },
+            cursor: if s.cursor { pointer } else { None },
             sink: s.sink.clone(),
         })
     }
@@ -145,7 +152,12 @@ impl Recorder {
                 log::info!("recorder: started ({} fps, quality {})", settings.fps, settings.quality);
                 self.session = Some(Session {
                     started: Instant::now(),
-                    scene_only: !settings.include_interface,
+                    mode: match settings.content {
+                        0 => Mode::World,
+                        1 => Mode::Bars,
+                        _ => Mode::Everything,
+                    },
+                    cursor: settings.cursor,
                     sink,
                     worker,
                 });
@@ -328,6 +340,8 @@ fn run(job: Job, frames: Receiver<Frame>, audio: Option<Receiver<Vec<f32>>>) -> 
         if (frame.width, frame.height) != *size {
             continue;
         }
+        let mut frame = frame;
+        compose(&mut frame);
         let due = start.map_or(0, |s| (frame.at.saturating_duration_since(s).as_secs_f64() / frame_time) as u64 + 1);
         // at least this frame, repeated up to where the video should be
         let copies = due.saturating_sub(written).max(u64::from(written == 0));
@@ -385,6 +399,80 @@ fn run(job: Job, frames: Receiver<Frame>, audio: Option<Receiver<Vec<f32>>>) -> 
     let _ = std::fs::remove_file(&wav);
     std::fs::rename(&video, &out).map_err(|e| e.to_string())?;
     Ok(out)
+}
+
+/// The windows' holes filled with the 3D view behind them, then the mouse
+/// pointer drawn over.
+fn compose(frame: &mut Frame) {
+    let (w, h) = (frame.width as usize, frame.height as usize);
+    if let Some(scene) = &frame.scene {
+        for &[x0, y0, x1, y1] in &frame.holes {
+            let (x0, x1) = ((x0 as usize).min(w), (x1 as usize).min(w));
+            let (y0, y1) = ((y0 as usize).min(h), (y1 as usize).min(h));
+            if x1 <= x0 {
+                continue;
+            }
+            for y in y0..y1 {
+                let a = (y * w + x0) * 4;
+                let b = (y * w + x1) * 4;
+                frame.pixels[a..b].copy_from_slice(&scene[a..b]);
+            }
+        }
+    }
+    if let Some([cx, cy]) = frame.cursor {
+        draw_cursor(&mut frame.pixels, w, h, cx.round() as i32, cy.round() as i32);
+    }
+}
+
+/// The usual arrow pointer: `#` its black edge, `.` its white inside.
+const ARROW: [&str; 19] = [
+    "#",
+    "##",
+    "#.#",
+    "#..#",
+    "#...#",
+    "#....#",
+    "#.....#",
+    "#......#",
+    "#.......#",
+    "#........#",
+    "#.........#",
+    "#......#####",
+    "#...#..#",
+    "#..##..#",
+    "#.#  #..#",
+    "##   #..#",
+    "#     #..#",
+    "      #..#",
+    "       ##",
+];
+
+fn draw_cursor(pixels: &mut [u8], w: usize, h: usize, x: i32, y: i32) {
+    // larger on a large screen, as the system draws it
+    let scale = if h >= 1400 { 2 } else { 1 };
+    for (r, line) in ARROW.iter().enumerate() {
+        for (c, ch) in line.chars().enumerate() {
+            let v = match ch {
+                '#' => 0u8,
+                '.' => 255u8,
+                _ => continue,
+            };
+            for dy in 0..scale {
+                for dx in 0..scale {
+                    let px = x + (c * scale + dx) as i32;
+                    let py = y + (r * scale + dy) as i32;
+                    if px < 0 || py < 0 || px as usize >= w || py as usize >= h {
+                        continue;
+                    }
+                    let i = (py as usize * w + px as usize) * 4;
+                    pixels[i] = v;
+                    pixels[i + 1] = v;
+                    pixels[i + 2] = v;
+                    pixels[i + 3] = 255;
+                }
+            }
+        }
+    }
 }
 
 /// The viewer's sound as a 16-bit stereo WAV at the engine's rate.

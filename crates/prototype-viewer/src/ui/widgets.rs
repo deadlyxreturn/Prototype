@@ -949,6 +949,9 @@ impl<'a> Floater<'a> {
                 ctx.data_mut(|d| d.insert_temp(scroll_id, too_tall));
             }
             slot.shown(ctx, response.response.rect, minimized);
+            // Prototype's recorder: the windows of this frame, left out of
+            // a "World + bars" video
+            note_window_rect(ctx, response.response.rect);
             if self.cascade.is_some() {
                 cascade::shown(ctx, window_id, response.response.rect, minimized);
             }
@@ -1665,6 +1668,33 @@ pub const TRACK_RADIUS: f32 = 2.0;
 
 /// Size of a `switch`.
 pub const SWITCH_SIZE: Vec2 = Vec2::new(34.0, 18.0);
+
+fn window_rects_id() -> egui::Id {
+    egui::Id::unique("prototype_window_rects")
+}
+
+pub(crate) fn note_window_rect(ctx: &egui::Context, rect: egui::Rect) {
+    ctx.data_mut(|d| d.get_temp_mut_or_default::<Vec<egui::Rect>>(window_rects_id()).push(rect));
+}
+
+/// The windows shown since the last call, in pixels (x0, y0, x1, y1),
+/// a little larger for their shadow.
+pub fn take_window_rects(ctx: &egui::Context) -> Vec<[u32; 4]> {
+    let ppp = ctx.pixels_per_point();
+    let rects = ctx.data_mut(|d| std::mem::take(d.get_temp_mut_or_default::<Vec<egui::Rect>>(window_rects_id())));
+    rects
+        .into_iter()
+        .map(|r| {
+            let r = r.expand(4.0);
+            [
+                (r.min.x * ppp).max(0.0) as u32,
+                (r.min.y * ppp).max(0.0) as u32,
+                (r.max.x * ppp).max(0.0).ceil() as u32,
+                (r.max.y * ppp).max(0.0).ceil() as u32,
+            ]
+        })
+        .collect()
+}
 
 /// Prototype's glossy "bubble" face: a vertical gradient from the light
 /// accent down to the accent, a white gloss over its top half, a light rim

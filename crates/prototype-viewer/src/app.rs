@@ -10766,8 +10766,27 @@ impl App {
             }
         }
         // Prototype's recorder: every frame copied while it records
+        // (demo: PROTOTYPE_DEMO_RECORD=start,stop frames; the window opens)
+        if self.demo
+            && let Ok(v) = std::env::var("PROTOTYPE_DEMO_RECORD")
+        {
+            let f: Vec<u64> = v.split(',').filter_map(|x| x.trim().parse().ok()).collect();
+            if let [start, stop] = f[..] {
+                if self.frame_count == start {
+                    self.panels.record_window = true;
+                    self.recorder.start(&self.settings.recorder);
+                } else if self.frame_count == stop {
+                    self.recorder.stop();
+                }
+            }
+        }
         self.recorder.poll();
-        gfx.renderer.record = self.recorder.request();
+        let windows = ui::widgets::take_window_rects(&self.egui_ctx);
+        let pointer = self.egui_ctx.input(|i| i.pointer.latest_pos()).map(|p| {
+            let ppp = self.egui_ctx.pixels_per_point();
+            [p.x * ppp, p.y * ppp]
+        });
+        gfx.renderer.record = self.recorder.request(&windows, pointer);
         self.panels.recording = self.recorder.recording();
         if self.want_scene_capture
             && !self.scene_capture_pending

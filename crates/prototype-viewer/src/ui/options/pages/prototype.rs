@@ -121,7 +121,17 @@ pub fn page(cx: &mut Cx, tab: usize) {
             // Prototype's recorder (the toolbar's Record button)
             cx.group(tr!("recorder-prefs"), |cx| {
                 cx.toggle(tr!("recorder-hide-name-tags"), tr!("recorder-prefs-help"), &field!(recorder.hide_name_tags));
-                cx.toggle(tr!("recorder-include-interface"), "", &field!(recorder.include_interface));
+                cx.choice(
+                    tr!("recorder-content"),
+                    tr!("recorder-content-help"),
+                    &field!(recorder.content),
+                    &[
+                        (0, tr!("recorder-content-world"), true),
+                        (1, tr!("recorder-content-bars"), true),
+                        (2, tr!("recorder-content-all"), true),
+                    ],
+                );
+                cx.toggle(tr!("recorder-cursor"), "", &field!(recorder.cursor));
                 cx.toggle(tr!("recorder-sound"), "", &field!(recorder.sound));
                 cx.choice(tr!("recorder-fps"), "", &field!(recorder.fps), &[(30, "30 fps", true), (60, "60 fps", true)]);
                 cx.choice(

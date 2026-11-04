@@ -58,10 +58,10 @@ pub fn window(ctx: &egui::Context, p: &Palette, open: &mut bool, s: &mut Recorde
     let mut action = None;
     let screen = ctx.content_rect();
     let pos = egui::pos2(screen.right() - 360.0, screen.top() + 120.0);
-    let mut floater = Floater::new(WINDOW, prototype_i18n::tr!("recorder-title"), pos, Vec2::new(320.0, 0.0));
+    let mut floater = Floater::new(WINDOW, prototype_i18n::tr!("recorder-title"), pos, Vec2::new(340.0, 0.0));
     floater.resizable = false;
     floater.show(ctx, p, open, |ui| {
-        ui.set_width(300.0);
+        ui.set_width(320.0);
         ui.spacing_mut().item_spacing.y = 8.0;
         let recording = rec.recording();
         let busy = rec.finishing();
@@ -107,7 +107,21 @@ pub fn window(ctx: &egui::Context, p: &Palette, open: &mut bool, s: &mut Recorde
                 });
             });
             widgets::divider(ui, p);
-            widgets::switch_labeled(ui, p, &mut s.include_interface, prototype_i18n::tr!("recorder-include-interface"));
+            ui.label(RichText::new(prototype_i18n::tr!("recorder-content")).size(12.5).color(p.muted));
+            let mut i = usize::from(s.content.min(2));
+            if widgets::segmented(
+                ui,
+                p,
+                &mut i,
+                &[
+                    (prototype_i18n::tr!("recorder-content-world"), true),
+                    (prototype_i18n::tr!("recorder-content-bars"), true),
+                    (prototype_i18n::tr!("recorder-content-all"), true),
+                ],
+            ) {
+                s.content = i as u8;
+            }
+            widgets::switch_labeled(ui, p, &mut s.cursor, prototype_i18n::tr!("recorder-cursor"));
             widgets::switch_labeled(ui, p, &mut s.hide_name_tags, prototype_i18n::tr!("recorder-hide-name-tags"));
             widgets::switch_labeled(ui, p, &mut s.sound, prototype_i18n::tr!("recorder-sound"));
         });
@@ -154,7 +168,7 @@ pub fn badge(ctx: &egui::Context, p: &Palette, rec: &Recorder) -> Option<RecordA
     }
     let mut action = None;
     let screen = ctx.content_rect();
-    egui::Area::new(egui::Id::unique("record_badge"))
+    let shown = egui::Area::new(egui::Id::unique("record_badge"))
         .order(egui::Order::Foreground)
         .pivot(egui::Align2::CENTER_TOP)
         .fixed_pos(egui::pos2(screen.center().x, screen.top() + 44.0))
@@ -186,5 +200,7 @@ pub fn badge(ctx: &egui::Context, p: &Palette, rec: &Recorder) -> Option<RecordA
                 });
             ui.ctx().request_repaint_after(Duration::from_millis(250));
         });
+    // interface: left out of a "World + bars" video
+    widgets::note_window_rect(ctx, shown.response.rect);
     action
 }
