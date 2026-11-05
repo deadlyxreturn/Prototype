@@ -122,6 +122,21 @@ pub fn window(ctx: &egui::Context, p: &Palette, open: &mut bool, s: &mut Recorde
                 s.content = i as u8;
             }
             widgets::switch_labeled(ui, p, &mut s.cursor, prototype_i18n::tr!("recorder-cursor"));
+            ui.horizontal(|ui| {
+                ui.label(RichText::new(prototype_i18n::tr!("recorder-blur")).size(12.5).color(p.muted));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let mut i = usize::from(s.motion_blur.min(3));
+                    let labels = [
+                        prototype_i18n::tr!("recorder-blur-off"),
+                        prototype_i18n::tr!("recorder-blur-light"),
+                        prototype_i18n::tr!("recorder-blur-medium"),
+                        prototype_i18n::tr!("recorder-blur-strong"),
+                    ];
+                    if widgets::segmented(ui, p, &mut i, &labels.map(|l| (l, true))) {
+                        s.motion_blur = i as u8;
+                    }
+                });
+            });
             widgets::switch_labeled(ui, p, &mut s.hide_name_tags, prototype_i18n::tr!("recorder-hide-name-tags"));
             widgets::switch_labeled(ui, p, &mut s.sound, prototype_i18n::tr!("recorder-sound"));
         });

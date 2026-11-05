@@ -28,6 +28,8 @@ pub struct RecorderSettings {
     pub content: u8,
     /// The mouse pointer is drawn into the video.
     pub cursor: bool,
+    /// Motion blur in the video only: 0 off, 1 light, 2 medium, 3 strong.
+    pub motion_blur: u8,
     /// The avatars' name tags are hidden while recording.
     pub hide_name_tags: bool,
     /// The viewer's sound is recorded with the video.
@@ -43,6 +45,7 @@ impl Default for RecorderSettings {
             quality: 1,
             content: 0,
             cursor: false,
+            motion_blur: 0,
             hide_name_tags: false,
             sound: true,
             folder: String::new(),
@@ -141,6 +144,7 @@ impl Recorder {
             folder,
             fps: settings.fps.clamp(15, 120),
             quality: settings.quality.min(2),
+            blur: settings.motion_blur.min(3),
             name: format!("Prototype {}", chrono::Local::now().format("%Y-%m-%d %H-%M-%S")),
         };
         let worker = std::thread::Builder::new()
@@ -277,6 +281,7 @@ struct Job {
     folder: PathBuf,
     fps: u32,
     quality: u8,
+    blur: u8,
     name: String,
 }
 
@@ -293,6 +298,7 @@ fn run(job: Job, frames: Receiver<Frame>, audio: Option<Receiver<Vec<f32>>>) -> 
     let mut written: u64 = 0;
     let mut failure = None;
     let frame_time = 1.0 / f64::from(job.fps);
+    let mut blur = MotionBlur::new(job.blur);
     loop {
         // the sound that came meanwhile
         if let Some((rx, writer)) = &mut sound {
@@ -342,6 +348,7 @@ fn run(job: Job, frames: Receiver<Frame>, audio: Option<Receiver<Vec<f32>>>) -> 
         }
         let mut frame = frame;
         compose(&mut frame);
+        blur.apply(&mut frame.pixels);
         let due = start.map_or(0, |s| (frame.at.saturating_duration_since(s).as_secs_f64() / frame_time) as u64 + 1);
         // at least this frame, repeated up to where the video should be
         let copies = due.saturating_sub(written).max(u64::from(written == 0));
@@ -421,6 +428,45 @@ fn compose(frame: &mut Frame) {
     }
     if let Some([cx, cy]) = frame.cursor {
         draw_cursor(&mut frame.pixels, w, h, cx.round() as i32, cy.round() as i32);
+    }
+}
+
+/// Motion blur of the video: each frame keeps part of the frames before
+/// it (an exponential trail), so what moves streaks and what stands still
+/// stays sharp. Done here, on the recorder's thread: the screen and the
+/// frame rate are not touched.
+struct MotionBlur {
+    /// How much of the trail stays, out of 256.
+    keep: u16,
+    trail: Vec<u8>,
+}
+
+impl MotionBlur {
+    fn new(level: u8) -> Self {
+        let keep = match level {
+            1 => 90,
+            2 => 140,
+            3 => 185,
+            _ => 0,
+        };
+        MotionBlur { keep, trail: Vec::new() }
+    }
+
+    fn apply(&mut self, pixels: &mut [u8]) {
+        if self.keep == 0 {
+            return;
+        }
+        if self.trail.len() != pixels.len() {
+            self.trail = pixels.to_vec();
+            return;
+        }
+        let keep = self.keep;
+        let take = 256 - keep;
+        for (t, p) in self.trail.iter_mut().zip(pixels.iter_mut()) {
+            let v = ((u16::from(*t) * keep + u16::from(*p) * take) >> 8) as u8;
+            *t = v;
+            *p = v;
+        }
     }
 }
 
@@ -526,6 +572,20 @@ impl WavWriter {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn motion_blur_keeps_a_trail_and_still_pixels_stay() {
+        let mut b = MotionBlur::new(2);
+        let mut first = vec![200u8; 8];
+        b.apply(&mut first);
+        assert_eq!(first, vec![200u8; 8]);
+        let mut moved = vec![0u8; 8];
+        b.apply(&mut moved);
+        assert!(moved.iter().all(|v| *v > 90 && *v < 120));
+        let mut off = vec![7u8; 4];
+        MotionBlur::new(0).apply(&mut off);
+        assert_eq!(off, vec![7u8; 4]);
+    }
 
     #[test]
     fn a_wav_header_counts_its_frames() {

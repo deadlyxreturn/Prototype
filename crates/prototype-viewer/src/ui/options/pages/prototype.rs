@@ -132,6 +132,17 @@ pub fn page(cx: &mut Cx, tab: usize) {
                     ],
                 );
                 cx.toggle(tr!("recorder-cursor"), "", &field!(recorder.cursor));
+                cx.choice(
+                    tr!("recorder-blur"),
+                    tr!("recorder-blur-help"),
+                    &field!(recorder.motion_blur),
+                    &[
+                        (0, tr!("recorder-blur-off"), true),
+                        (1, tr!("recorder-blur-light"), true),
+                        (2, tr!("recorder-blur-medium"), true),
+                        (3, tr!("recorder-blur-strong"), true),
+                    ],
+                );
                 cx.toggle(tr!("recorder-sound"), "", &field!(recorder.sound));
                 cx.choice(tr!("recorder-fps"), "", &field!(recorder.fps), &[(30, "30 fps", true), (60, "60 fps", true)]);
                 cx.choice(
