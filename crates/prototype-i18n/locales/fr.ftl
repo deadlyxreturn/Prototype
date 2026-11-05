@@ -13194,3 +13194,5 @@ recorder-blur-off = Non
 recorder-blur-light = Léger
 recorder-blur-medium = Moyen
 recorder-blur-strong = Fort
+recorder-microphone = Enregistrer mon micro
+recorder-microphone-help = Votre voix, du micro de Préférences › Son, mêlée au son du viewer.

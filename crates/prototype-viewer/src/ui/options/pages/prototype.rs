@@ -144,6 +144,7 @@ pub fn page(cx: &mut Cx, tab: usize) {
                     ],
                 );
                 cx.toggle(tr!("recorder-sound"), "", &field!(recorder.sound));
+                cx.toggle(tr!("recorder-microphone"), tr!("recorder-microphone-help"), &field!(recorder.microphone));
                 cx.choice(tr!("recorder-fps"), "", &field!(recorder.fps), &[(30, "30 fps", true), (60, "60 fps", true)]);
                 cx.choice(
                     tr!("recorder-quality"),

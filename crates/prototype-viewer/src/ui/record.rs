@@ -36,7 +36,7 @@ fn big_button(ui: &mut egui::Ui, p: &Palette, recording: bool, busy: bool) -> eg
     let t = ui.input(|i| i.time) as f32;
     if recording {
         let pulse = 0.5 + 0.5 * (t * 3.0).sin();
-        painter.circle_filled(c, side * 0.5 + 4.0 + pulse * 3.0, p.danger.gamma_multiply(0.18 + 0.12 * pulse));
+        painter.circle_filled(c, side * 0.5 + 4.0 + pulse * 3.0, p.violet.gamma_multiply(0.16 + 0.12 * pulse));
         ui.ctx().request_repaint();
     }
     let face = egui::Rect::from_center_size(c, Vec2::splat(side - 8.0));
@@ -45,8 +45,8 @@ fn big_button(ui: &mut egui::Ui, p: &Palette, recording: bool, busy: bool) -> eg
         let sq = egui::Rect::from_center_size(c, Vec2::splat(24.0));
         painter.rect_filled(sq, 5.0, p.field); // theme-guard: content — the stop square
     } else {
-        painter.circle_filled(c, 15.0, p.field);
-        painter.circle_filled(c, 11.0, p.danger);
+        // Prototype: the record dot in white on the green bubble
+        painter.circle_filled(c, 14.0, p.field);
     }
     if resp.hovered() && !busy {
         ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
@@ -71,7 +71,7 @@ pub fn window(ctx: &egui::Context, p: &Palette, open: &mut bool, s: &mut Recorde
                 action = Some(RecordAction::Toggle);
             }
             let (line, color) = if recording {
-                (format!("● {}", clock(rec.elapsed())), p.danger)
+                (clock(rec.elapsed()), p.ink)
             } else if busy {
                 (prototype_i18n::tr!("recorder-saving").to_owned(), p.muted)
             } else {
@@ -139,6 +139,7 @@ pub fn window(ctx: &egui::Context, p: &Palette, open: &mut bool, s: &mut Recorde
             });
             widgets::switch_labeled(ui, p, &mut s.hide_name_tags, prototype_i18n::tr!("recorder-hide-name-tags"));
             widgets::switch_labeled(ui, p, &mut s.sound, prototype_i18n::tr!("recorder-sound"));
+            widgets::switch_labeled(ui, p, &mut s.microphone, prototype_i18n::tr!("recorder-microphone"));
         });
         widgets::divider(ui, p);
         let folder = s.folder();
@@ -198,7 +199,7 @@ pub fn badge(ctx: &egui::Context, p: &Palette, rec: &Recorder) -> Option<RecordA
                         let t = ui.input(|i| i.time) as f32;
                         let (dot, _) = ui.allocate_exact_size(Vec2::splat(12.0), Sense::hover());
                         let a = 0.55 + 0.45 * (t * 3.0).sin().abs();
-                        ui.painter().circle_filled(dot.center(), 5.5, p.danger.gamma_multiply(a));
+                        ui.painter().circle_filled(dot.center(), 5.5, p.violet.gamma_multiply(a));
                         ui.label(
                             RichText::new(format!("REC  {}", clock(rec.elapsed())))
                                 .size(13.0)

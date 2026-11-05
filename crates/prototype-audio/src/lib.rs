@@ -36,6 +36,7 @@ mod mixer;
 mod output;
 mod processing;
 mod resample;
+mod record_mic;
 mod reverb;
 mod stream;
 mod wind;
@@ -51,6 +52,7 @@ pub use devices::{input_devices, output_devices};
 pub use mixer::{Channel, ChannelSettings, ENGINE_SAMPLE_RATE};
 pub use output::OutputInfo;
 pub use processing::{EchoReference, MicProcessing};
+pub use record_mic::{MicRecording, record_microphone};
 pub use reverb::ReverbParams;
 
 /// Prototype's recorder: while set, a copy of everything the viewer plays

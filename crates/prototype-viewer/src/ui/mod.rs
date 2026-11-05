@@ -118,6 +118,7 @@ pub mod sky_beacons;
 pub mod snap;
 pub mod snapshot;
 pub mod record;
+pub mod stand;
 pub mod sound_cues;
 pub(crate) mod spelling;
 pub mod staff;

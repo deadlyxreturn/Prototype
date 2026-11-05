@@ -34,6 +34,8 @@ pub struct RecorderSettings {
     pub hide_name_tags: bool,
     /// The viewer's sound is recorded with the video.
     pub sound: bool,
+    /// The microphone is recorded with the video (your voice).
+    pub microphone: bool,
     /// Where the videos go; empty: `<Videos>/Prototype`.
     pub folder: String,
 }
@@ -48,6 +50,7 @@ impl Default for RecorderSettings {
             motion_blur: 0,
             hide_name_tags: false,
             sound: true,
+            microphone: false,
             folder: String::new(),
         }
     }
@@ -89,6 +92,9 @@ struct Session {
 #[derive(Default)]
 pub struct Recorder {
     session: Option<Session>,
+    /// The microphone to record (Preferences › Sound's input; empty: the
+    /// default one).
+    pub mic_device: String,
     /// A recording that is being finished (the sound joined) off the frame.
     finishing: Option<JoinHandle<Result<PathBuf, String>>>,
     pub notice: Option<(Notice, Instant)>,
@@ -139,6 +145,14 @@ impl Recorder {
             prototype_audio::set_record_tap(Some(tx));
             rx
         });
+        let mic = settings.microphone.then(|| {
+            let name = (!self.mic_device.trim().is_empty()).then(|| self.mic_device.clone());
+            prototype_audio::record_microphone(name)
+        });
+        if matches!(mic, Some(None)) {
+            log::warn!("recorder: no microphone could be opened");
+        }
+        let mic = mic.flatten();
         let job = Job {
             ffmpeg,
             folder,
@@ -149,7 +163,7 @@ impl Recorder {
         };
         let worker = std::thread::Builder::new()
             .name("recorder".into())
-            .spawn(move || run(job, frames, audio))
+            .spawn(move || run(job, frames, audio, mic))
             .map_err(|e| e.to_string());
         match worker {
             Ok(worker) => {
@@ -287,12 +301,22 @@ struct Job {
 
 /// The recorder's thread: frames in at whatever rate the viewer draws,
 /// video out at a steady `fps` (a frame repeated or skipped to keep time).
-fn run(job: Job, frames: Receiver<Frame>, audio: Option<Receiver<Vec<f32>>>) -> Result<PathBuf, String> {
+fn run(
+    job: Job,
+    frames: Receiver<Frame>,
+    audio: Option<Receiver<Vec<f32>>>,
+    mic: Option<prototype_audio::MicRecording>,
+) -> Result<PathBuf, String> {
     let encoder = pick_encoder(&job.ffmpeg, job.quality);
     let video = job.folder.join(format!("{}.video.mp4", job.name));
     let wav = job.folder.join(format!("{}.sound.wav", job.name));
     let out = job.folder.join(format!("{}.mp4", job.name));
-    let mut sound = audio.map(|rx| (rx, WavWriter::create(&wav)));
+    let mut sound = audio.map(|rx| (rx, WavWriter::create(&wav, 2, prototype_audio::ENGINE_SAMPLE_RATE)));
+    let mic_wav = job.folder.join(format!("{}.mic.wav", job.name));
+    let mut voice = mic.map(|m| {
+        let w = WavWriter::create(&mic_wav, 1, m.rate);
+        (m, w)
+    });
     let mut child: Option<(Child, BufWriter<std::process::ChildStdin>, (u32, u32))> = None;
     let mut start = None;
     let mut written: u64 = 0;
@@ -303,6 +327,13 @@ fn run(job: Job, frames: Receiver<Frame>, audio: Option<Receiver<Vec<f32>>>) -> 
         // the sound that came meanwhile
         if let Some((rx, writer)) = &mut sound {
             while let Ok(samples) = rx.try_recv() {
+                if let Ok(w) = writer {
+                    let _ = w.write(&samples);
+                }
+            }
+        }
+        if let Some((m, writer)) = &mut voice {
+            while let Ok(samples) = m.samples.try_recv() {
                 if let Ok(w) = writer {
                     let _ = w.write(&samples);
                 }
@@ -376,34 +407,51 @@ fn run(job: Job, frames: Receiver<Frame>, audio: Option<Receiver<Vec<f32>>>) -> 
         }
         _ => false,
     };
+    let voice_ok = match voice {
+        Some((m, Ok(mut w))) => {
+            while let Ok(samples) = m.samples.try_recv() {
+                let _ = w.write(&samples);
+            }
+            drop(m);
+            let any = w.frames > 0;
+            w.finish().is_ok() && any
+        }
+        _ => false,
+    };
     let Some((mut c, pipe, _)) = child else {
         let _ = std::fs::remove_file(&wav);
+        let _ = std::fs::remove_file(&mic_wav);
         return Err(failure.unwrap_or_else(|| "nothing was recorded".to_owned()));
     };
     drop(pipe);
     let status = c.wait().map_err(|e| e.to_string())?;
     if !status.success() {
         let _ = std::fs::remove_file(&wav);
+        let _ = std::fs::remove_file(&mic_wav);
         return Err(failure.unwrap_or_else(|| "FFmpeg could not encode the video".to_owned()));
     }
-    // the sound joined to the video, copied as it is (no second encoding)
-    if sound_ok {
-        let joined = command(&job.ffmpeg)
-            .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
-            .arg(&video)
-            .arg("-i")
-            .arg(&wav)
-            .args(["-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart"])
-            .arg(&out)
-            .status()
-            .is_ok_and(|s| s.success());
-        if joined {
+    // the sounds joined to the video (the viewer's and the microphone's
+    // mixed), the video copied as it is (no second encoding)
+    let inputs: Vec<&PathBuf> = [(sound_ok, &wav), (voice_ok, &mic_wav)].into_iter().filter(|(ok, _)| *ok).map(|(_, p)| p).collect();
+    if !inputs.is_empty() {
+        let mut c = command(&job.ffmpeg);
+        c.args(["-hide_banner", "-loglevel", "error", "-y", "-i"]).arg(&video);
+        for i in &inputs {
+            c.arg("-i").arg(i);
+        }
+        if inputs.len() == 2 {
+            c.args(["-filter_complex", "[1:a][2:a]amix=inputs=2:duration=longest:normalize=0[a]", "-map", "0:v", "-map", "[a]"]);
+        }
+        c.args(["-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart"]).arg(&out);
+        if c.status().is_ok_and(|s| s.success()) {
             let _ = std::fs::remove_file(&video);
             let _ = std::fs::remove_file(&wav);
+            let _ = std::fs::remove_file(&mic_wav);
             return Ok(out);
         }
     }
     let _ = std::fs::remove_file(&wav);
+    let _ = std::fs::remove_file(&mic_wav);
     std::fs::rename(&video, &out).map_err(|e| e.to_string())?;
     Ok(out)
 }
@@ -521,43 +569,45 @@ fn draw_cursor(pixels: &mut [u8], w: usize, h: usize, x: i32, y: i32) {
     }
 }
 
-/// The viewer's sound as a 16-bit stereo WAV at the engine's rate.
+/// A sound as a 16-bit WAV (the viewer's in stereo at the engine's rate,
+/// the microphone's in mono at its own).
 struct WavWriter {
     file: BufWriter<std::fs::File>,
     frames: u64,
+    channels: u16,
+    rate: u32,
 }
 
 impl WavWriter {
-    const RATE: u32 = prototype_audio::ENGINE_SAMPLE_RATE;
-
-    fn create(path: &Path) -> std::io::Result<Self> {
+    fn create(path: &Path, channels: u16, rate: u32) -> std::io::Result<Self> {
         let mut file = BufWriter::new(std::fs::File::create(path)?);
         file.write_all(&[0u8; 44])?;
-        Ok(WavWriter { file, frames: 0 })
+        Ok(WavWriter { file, frames: 0, channels: channels.max(1), rate: rate.max(1) })
     }
 
-    fn write(&mut self, stereo: &[f32]) -> std::io::Result<()> {
-        for s in stereo {
+    fn write(&mut self, samples: &[f32]) -> std::io::Result<()> {
+        for s in samples {
             let v = (s.clamp(-1.0, 1.0) * 32767.0) as i16;
             self.file.write_all(&v.to_le_bytes())?;
         }
-        self.frames += (stereo.len() / 2) as u64;
+        self.frames += (samples.len() / usize::from(self.channels)) as u64;
         Ok(())
     }
 
     fn finish(mut self) -> std::io::Result<()> {
         use std::io::{Seek, SeekFrom};
-        let data = (self.frames * 4) as u32;
+        let block = u32::from(self.channels) * 2;
+        let data = (self.frames * u64::from(block)) as u32;
         let mut h = Vec::with_capacity(44);
         h.extend_from_slice(b"RIFF");
         h.extend_from_slice(&(36 + data).to_le_bytes());
         h.extend_from_slice(b"WAVEfmt ");
         h.extend_from_slice(&16u32.to_le_bytes());
         h.extend_from_slice(&1u16.to_le_bytes());
-        h.extend_from_slice(&2u16.to_le_bytes());
-        h.extend_from_slice(&Self::RATE.to_le_bytes());
-        h.extend_from_slice(&(Self::RATE * 4).to_le_bytes());
-        h.extend_from_slice(&4u16.to_le_bytes());
+        h.extend_from_slice(&self.channels.to_le_bytes());
+        h.extend_from_slice(&self.rate.to_le_bytes());
+        h.extend_from_slice(&(self.rate * block).to_le_bytes());
+        h.extend_from_slice(&(block as u16).to_le_bytes());
         h.extend_from_slice(&16u16.to_le_bytes());
         h.extend_from_slice(b"data");
         h.extend_from_slice(&data.to_le_bytes());
@@ -592,7 +642,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("proto-rec-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("t.wav");
-        let mut w = WavWriter::create(&path).unwrap();
+        let mut w = WavWriter::create(&path, 2, 48_000).unwrap();
         w.write(&[0.0, 0.5, -0.5, 1.0]).unwrap();
         w.finish().unwrap();
         let bytes = std::fs::read(&path).unwrap();

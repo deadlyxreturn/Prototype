@@ -10780,6 +10780,7 @@ impl App {
                 }
             }
         }
+        self.recorder.mic_device.clone_from(&self.settings.audio.input_device);
         self.recorder.poll();
         let windows = ui::widgets::take_window_rects(&self.egui_ctx);
         let pointer = self.egui_ctx.input(|i| i.pointer.latest_pos()).map(|p| {
@@ -16486,6 +16487,13 @@ impl App {
                     self.settings.save();
                 }
                 ui::beacons::show(&ctx, &p, &mut self.panels.beacons, &mut self.settings);
+                // Firestorm's Stand / Stop flying button while seated or flying
+                if matches!(self.screen, Screen::World)
+                    && !self.interface.immersive
+                    && let Some(bar) = ui::stand::show(&ctx, &p, self.world.agent.is_sitting(), self.world.agent.flying)
+                {
+                    a.bar = bar;
+                }
                 // Prototype's Record window and its badge while recording
                 {
                     let before = self.settings.recorder.clone();

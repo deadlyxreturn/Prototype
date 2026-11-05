@@ -13171,3 +13171,5 @@ recorder-blur-off = オフ
 recorder-blur-light = 弱
 recorder-blur-medium = 中
 recorder-blur-strong = 強
+recorder-microphone = マイクを録音
+recorder-microphone-help = 設定 › サウンドのマイクの声を、ビューアーの音と一緒に録音します。
