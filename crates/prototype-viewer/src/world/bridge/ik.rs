@@ -3,7 +3,6 @@ use super::*;
 
 pub(super) const NAME: &str = "#Prototype Bridge IK";
 pub(super) const SOURCE: &str = include_str!("ik.lsl");
-pub(crate) const CONTROL: i32 = -190018106;
 
 #[derive(Default)]
 pub(super) struct Service {

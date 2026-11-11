@@ -233,8 +233,20 @@ impl LooksUi {
         self.mode = Mode::Replace;
     }
 
-    /// The user's tables: a row each with its bin, then the import.
+    /// The creators' tables under their name, then the user's: a row each
+    /// with its bin, then the import.
     fn luts(&mut self, ui: &mut egui::Ui, p: &Palette, s: &mut Settings, luts: &[String], out: &mut Vec<Action>) {
+        for (creator, entries) in looks::pack_list() {
+            ui.add_space(4.0);
+            ui.label(
+                RichText::new(prototype_i18n::tr!("photo-lut-pack", creator = creator).to_uppercase())
+                    .size(10.5)
+                    .color(p.muted),
+            )
+            .on_hover_text(prototype_i18n::tr!("photo-lut-pack-tip", creator = creator));
+            self.chips(ui, p, &entries, s);
+        }
+        heading(ui, p, prototype_i18n::tr!("photo-lut-mine"));
         let entries = looks::lut_list(luts);
         if entries.is_empty() {
             ui.add(egui::Label::new(RichText::new(prototype_i18n::tr!("photo-lut-empty")).color(p.muted)).wrap());
@@ -307,7 +319,7 @@ impl LooksUi {
             ui.add(egui::Slider::new(&mut layer.strength, 0..=100).suffix(" %"))
         });
         let Some(prototype) = id.strip_prefix(looks::PROTOTYPE) else {
-            let note = if id.starts_with(looks::LUT) {
+            let note = if id.starts_with(looks::LUT) || id.starts_with(looks::PACK) {
                 prototype_i18n::tr!("photo-looks-lut-note")
             } else {
                 prototype_i18n::tr!("photo-looks-legacy-note")

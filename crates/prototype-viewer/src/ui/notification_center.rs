@@ -718,11 +718,13 @@ pub(super) fn history_list(
         {
             hist.clear();
         }
-        ui.add(
-            egui::TextEdit::singleline(query)
-                .hint_text(prototype_i18n::tr!("ui-notifications-search-history"))
-                .desired_width(ui.available_width()),
-        );
+        {
+            let width = ui.available_width();
+            crate::ui::widgets::search_text_edit(ui, p, query, |edit| {
+                edit.hint_text(prototype_i18n::tr!("ui-notifications-search-history"))
+                    .desired_width(width)
+            })
+        };
     });
     ui.add_space(4.0);
     let query = query.trim().to_lowercase();
@@ -776,6 +778,9 @@ fn center_card(
     wanted_images: &mut std::collections::HashSet<uuid::Uuid>,
     n: &mut Notification,
 ) -> Option<Response> {
+    if super::notifications::close_script_prompt(ui.ctx(), n) {
+        return Some(Response::Dismiss);
+    }
     if matches!(n.data, Data::RegionRestart)
         && let Some(info) = &env.restart
     {
@@ -789,7 +794,10 @@ fn center_card(
             cards::card(ui, p, icons, world, env.images, wanted_images, n, false, true)
         }
     });
-    if !read {
+    // a new version of Prototype: the prototype's edge, read or not
+    if matches!(n.data, Data::Update { .. }) {
+        prototype::paint_edge(ui, p, inner.response.rect);
+    } else if !read {
         let r = inner.response.rect;
         ui.painter().rect_filled(
             Rect::from_min_max(r.left_top(), egui::pos2(r.left() + 2.0, r.bottom())),
@@ -1032,6 +1040,7 @@ fn hhmm(secs: u64) -> String {
     super::chat::hhmm(at(secs))
 }
 
+pub mod prototype;
 pub mod presence;
 
 #[cfg(test)]

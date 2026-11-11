@@ -22,13 +22,16 @@ pub enum Look {
 /// Every choice of the page set to one look (the colored sky ambient
 /// included), and Prototype's water with it;
 /// the avatar plates' own settings and the filing of received items are
-/// left as they are.
+/// left as they are, and so is a gaze on the point under the cursor: the
+/// Prototype look does not choose to show others what the cursor is over.
 pub fn set_all(s: &mut Settings, look: Look) {
     let prototype = look == Look::Prototype;
     s.chat_style = if prototype { ChatStyle::Prototype } else { ChatStyle::Legacy };
     s.classic_name_tags = !prototype;
     s.lookat.style = if prototype { Style::Prototype } else { Style::Legacy };
-    s.lookat.aim = if prototype { Aim::Point } else { Aim::Direction };
+    if !prototype {
+        s.lookat.aim = Aim::Direction;
+    }
     s.notifications_style = if prototype {
         NotificationsStyle::Prototype
     } else {
@@ -47,6 +50,7 @@ pub fn set_all(s: &mut Settings, look: Look) {
     s.classic_search = !prototype;
     s.classic_region_estate = !prototype;
     s.classic_inventory = !prototype;
+    s.classic_outfit_gallery = !prototype;
     s.build.legacy_window = !prototype;
     s.classic_places = !prototype;
     s.classic_pay_window = !prototype;
@@ -278,6 +282,14 @@ pub fn page(cx: &mut Cx, tab: usize) {
             );
             look(
                 cx,
+                tr!("ui-options-prototype-outfit-gallery"),
+                tr!("ui-options-prototype-outfit-gallery-help"),
+                tr!("ui-options-prototype-outfit-gallery-prototype"),
+                tr!("ui-options-prototype-outfit-gallery-classic"),
+                &field!(classic_outfit_gallery),
+            );
+            look(
+                cx,
                 tr!("ui-options-prototype-build"),
                 tr!("ui-options-prototype-build-help"),
                 prototype,
@@ -400,6 +412,18 @@ pub fn page(cx: &mut Cx, tab: usize) {
                     tr!("ui-options-prototype-use-bridge-help"),
                     &field!(use_bridge),
                 );
+                use crate::world::portals::Sources;
+                cx.combo(
+                    tr!("ui-options-prototype-portal-sources"),
+                    tr!("ui-options-prototype-portal-sources-help"),
+                    &field!(portal_sources),
+                    &[
+                        (Sources::Friends, tr!("ui-options-prototype-portal-sources-friends")),
+                        (Sources::FriendsAndGroups, tr!("ui-options-prototype-portal-sources-groups")),
+                        (Sources::Everyone, tr!("ui-options-prototype-portal-sources-everyone")),
+                        (Sources::Nobody, tr!("ui-options-prototype-portal-sources-nobody")),
+                    ],
+                );
             });
             cx.group(tr!("ui-options-prototype-gaze"), |cx| {
                 cx.wide().choice(
@@ -473,6 +497,18 @@ mod tests {
     }
 
     #[test]
+    fn the_prototype_button_keeps_the_gaze_choice() {
+        let mut s = Settings::default();
+        set_all(&mut s, Look::Prototype);
+        assert_eq!(s.lookat.aim, Aim::Direction, "never turned to the point by the button");
+        s.lookat.aim = Aim::Point;
+        set_all(&mut s, Look::Prototype);
+        assert_eq!(s.lookat.aim, Aim::Point, "a chosen point stays");
+        set_all(&mut s, Look::Legacy);
+        assert_eq!(s.lookat.aim, Aim::Direction);
+    }
+
+    #[test]
     fn the_two_buttons_set_every_look_and_leave_the_plates_alone() {
         let mut s = Settings {
             plates_friends_only_full: true,
@@ -493,6 +529,7 @@ mod tests {
         assert!(s.classic_search, "Search opens the Legacy Viewer's tabs");
         assert!(s.classic_region_estate);
         assert!(s.classic_inventory, "the Legacy Viewer's single inventory tree");
+        assert!(s.classic_outfit_gallery, "the Legacy Viewer's small outfit tiles");
         assert!(s.build.legacy_window, "the Legacy Viewer's build tools and tabs");
         assert!(s.classic_places, "Places opens the Legacy Viewer's three tabs");
         assert!(s.classic_pay_window);
@@ -532,6 +569,10 @@ mod tests {
             "the Prototype inventory is the default"
         );
         assert!(!s.classic_places && !fresh.classic_places, "Prototype's Places is the default");
+        assert!(
+            !s.classic_outfit_gallery && !fresh.classic_outfit_gallery,
+            "the showcase is the default"
+        );
         assert!(!s.build.legacy_window && !fresh.build.legacy_window);
         assert!(!s.classic_pay_window && !fresh.classic_pay_window);
         assert!(!s.legacy_money_tracker && !fresh.legacy_money_tracker);
